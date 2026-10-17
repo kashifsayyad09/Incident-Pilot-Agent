@@ -1,9 +1,7 @@
 import type { DecisionResult, DecisionStatus, HealthResponse, IncidentList } from "./types";
 
-export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000").replace(
-  /\/$/,
-  "",
-);
+// Same-origin: nginx (docker) or Next.js rewrites (npm run dev) route to the backend.
+export const API_BASE = "";
 
 export type ApiResult<T> =
   | { ok: true; data: T }
@@ -31,7 +29,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T
     return {
       ok: false,
       status: null,
-      error: `Cannot reach the API at ${API_BASE}. Is the backend running?`,
+      error: `Cannot reach the API. Is the backend running?`,
     };
   }
 }

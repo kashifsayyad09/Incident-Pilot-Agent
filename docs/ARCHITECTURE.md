@@ -1,8 +1,10 @@
 # Architecture (Phase 1 baseline)
 
 ```
-Browser (Next.js, TS, Tailwind, GSAP, R3F)
-        │  HTTPS / JSON  (NEXT_PUBLIC_API_BASE_URL)
+Browser ──► nginx :8080 (single origin)
+              ├─ /            ─► Next.js frontend :3000
+              └─ /api /health /docs ─► FastAPI backend :8000
+Next.js (TS, Tailwind, GSAP, R3F)  ·  JSON over same-origin /api
         ▼
 FastAPI backend ── routers: health · incidents · decision
         │

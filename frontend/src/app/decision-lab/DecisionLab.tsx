@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { selectIncident, useDefaultSelection, useIncidentState } from "@/lib/incidentStore";
+import { useReveal } from "@/lib/useReveal";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import type { DecisionResult } from "@/lib/types";
@@ -27,12 +29,21 @@ export default function DecisionLab() {
   const params = useSearchParams();
   const incidents = useApi(api.incidents);
   const decider = useApi(api.decisionStatus);
-  const [picked, setPicked] = useState<string | null>(params.get("incident"));
   const [run, setRun] = useState<RunState>({ status: "idle" });
 
-  const list = incidents.status === "ready" ? incidents.data.incidents : [];
-  const selectedId = picked ?? list[0]?.id ?? null;
-  const selected = list.find((i) => i.id === selectedId) ?? null;
+  const list = useMemo(
+    () => (incidents.status === "ready" ? incidents.data.incidents : []),
+    [incidents],
+  );
+  const wanted = params.get("incident");
+  useEffect(() => {
+    const hit = list.find((i) => i.id === wanted);
+    if (hit) selectIncident(hit);
+  }, [list, wanted]);
+  useDefaultSelection(list);
+  const { selected } = useIncidentState();
+  const selectedId = selected?.id ?? null;
+  const ref = useReveal<HTMLDivElement>([incidents.status, decider.status]);
 
   async function trigger() {
     if (!selectedId) return;
@@ -44,7 +55,7 @@ export default function DecisionLab() {
   }
 
   return (
-    <>
+    <div ref={ref}>
       <PageHeader
         title="Decision Lab"
         description="Pick an incident, then ask Strands Decider 2B which diagnostic tool to run next. Only real model output is shown."
@@ -74,7 +85,7 @@ export default function DecisionLab() {
                         className="mt-1 accent-cyan"
                         checked={i.id === selectedId}
                         onChange={() => {
-                          setPicked(i.id);
+                          selectIncident(i);
                           setRun({ status: "idle" });
                         }}
                       />
@@ -151,8 +162,29 @@ export default function DecisionLab() {
             </div>
           </Panel>
         </div>
+        <Panel title="How the pattern works" className="lg:col-span-12">
+          <ol className="grid gap-3 text-sm text-text-dim md:grid-cols-5">
+            {[
+              ["State", "A typed snapshot of the incident"],
+              ["Question", "“Which diagnostic tool should run next?”"],
+              ["Options", "Five explicit, typed choices"],
+              ["Decide", "Decider 2B selects one and reports confidence"],
+              ["Gate", "Below the threshold: collect evidence or ask a human"],
+            ].map(([t, d], i) => (
+              <li key={t} className="rounded-card border border-border bg-surface-2/60 p-3">
+                <span className="font-mono text-xs text-text-faint">0{i + 1}</span>
+                <p className="font-semibold text-indigo">{t}</p>
+                <p className="mt-1">{d}</p>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-4 text-xs text-text-faint">
+            The reusable recipe ships in <code className="font-mono">backend/decision_patterns/tool_selection/</code>{" "}
+            (Phase 2).
+          </p>
+        </Panel>
       </div>
-    </>
+    </div>
   );
 }
 

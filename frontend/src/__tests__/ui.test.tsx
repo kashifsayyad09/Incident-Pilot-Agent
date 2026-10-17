@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ModeBadge, SeverityPill, UnavailableBanner } from "@/components/ui";
 import { TOOL_OPTIONS } from "@/lib/types";

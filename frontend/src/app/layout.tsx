@@ -3,7 +3,8 @@ import "@fontsource-variable/inter";
 import "@fontsource-variable/space-grotesk";
 import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
-import NavBar from "@/components/NavBar";
+import SceneBackground from "@/components/SceneBackground";
+import Shell from "@/components/Shell";
 
 export const metadata: Metadata = {
   title: "IncidentPilot AI — From Cloud Chaos to Clarity",
@@ -21,19 +22,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Skip to content
         </a>
-        <NavBar />
-        <main id="main" className="mx-auto max-w-[1440px] px-4 py-10 md:px-8">
-          {children}
-        </main>
-        <footer className="border-t border-border py-6 text-center text-sm text-text-faint">
-          IncidentPilot AI · AWS Strands Decider Agent Hackathon ·{" "}
-          <a
-            className="text-text-dim underline hover:text-cyan"
-            href="https://github.com/kashifsayyad09/Incident-Pilot-Agent"
-          >
-            GitHub
-          </a>
-        </footer>
+        <SceneBackground />
+        <Shell>{children}</Shell>
       </body>
     </html>
   );

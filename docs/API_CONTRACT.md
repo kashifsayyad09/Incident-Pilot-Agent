@@ -1,6 +1,6 @@
 # API Contract (v0.1.0)
 
-Base URL: `http://localhost:8000`. Machine-readable schema: `shared/openapi.json`
+Base URL: same origin as the UI (`http://localhost:8080` via nginx, or `http://localhost:3000` in dev via Next.js rewrites); the backend itself listens on `:8000`. Machine-readable schema: `shared/openapi.json`
 (regenerate with `python backend/scripts/export_openapi.py`; CI fails if stale).
 TypeScript mirror: `frontend/src/lib/types.ts`.
 
