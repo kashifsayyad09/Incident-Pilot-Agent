@@ -41,11 +41,11 @@ class ToolOption(StrEnum):
 
 
 class DecisionOutcome(StrEnum):
-    """What the agent did with the model's prediction."""
+    """What the confidence gate decided to do with the model's selection."""
 
-    TOOL_INVOKED = "tool_invoked"
-    ESCALATED_LOW_CONFIDENCE = "escalated_low_confidence"
-    UNAVAILABLE = "unavailable"
+    TOOL_SELECTED = "tool_selected"  # confident; the tool is run in Phase 4
+    EVIDENCE_REQUESTED = "evidence_requested"  # gather more evidence, then ask again
+    HUMAN_REVIEW = "human_review"  # still unsure; a person decides
 
 
 # ---- Health ---------------------------------------------------------------
@@ -101,18 +101,29 @@ class DecisionRequest(BaseModel):
 
 
 class DecisionResult(BaseModel):
+    """One real Decider 2B inference. `confidence` and `probabilities` are the model's own
+    numbers, unmodified. `latency_ms` is the server-reported inference time (null if the
+    server did not report it); `roundtrip_ms` is measured by this API."""
+
     incident_id: str
     mode: Mode
     input_state: dict[str, object]
+    state_text: str = Field(description="The exact text the model read.")
     question: str
     options: list[ToolOption]
-    selected: ToolOption | None = None
-    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    selected: ToolOption
+    confidence: float = Field(ge=0.0, le=1.0)
+    probabilities: dict[str, float]
+    model: str | None = None
     latency_ms: float | None = Field(default=None, ge=0.0)
+    roundtrip_ms: float = Field(ge=0.0)
     confidence_threshold: float
+    meets_threshold: bool
     outcome: DecisionOutcome
-    tool_invoked: str | None = None
-    note: str | None = None
+    reason: str
+    tool_invoked: str | None = Field(
+        default=None, description="Always null until diagnostic tools exist (Phase 4)."
+    )
 
 
 class ErrorResponse(BaseModel):

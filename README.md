@@ -8,14 +8,14 @@ Hackathon** (category: Tool Selection, `#strands-decider-2b #tool-selection`).
 **Pipeline:** Incident → Strands Decider 2B picks the next diagnostic tool →
 read-only AWS diagnostic → Amazon Bedrock analysis → incident report → dashboard.
 
-## Status: Phase 1 (foundation) complete
+## Status: Phase 2 (Decider 2B tool selection) complete, pending live-model verification
 
 | Area | State |
 |---|---|
 | FastAPI backend skeleton, config, schemas, API-key option, CORS | Done, tested |
 | Next.js frontend: 5 routes, sidebar app shell, R3F 3D background, GSAP motion, mode badge, API client | Done, builds, screenshot-checked in headless Chromium |
 | Simulation catalogue (5 scenarios, metadata only) | Done |
-| Decider 2B inference | **Not implemented** (Phase 2). API reports `unavailable` |
+| Decider 2B tool selection (`backend/decision_patterns/tool_selection/`) | Implemented against the real `strands-decider` System One API; confidence-gated; reusable pattern with guide. **Not yet run against the real model** (see below) |
 | Bedrock / Strands agent | **Not implemented** (Phase 3) |
 | AWS diagnostics (CloudWatch, ALB, EC2, RDS) | **Not implemented** (Phase 4) |
 | Live metrics, evidence panels, report export | **Not implemented** (need Phases 2-4); shown as “—” / unavailable |
@@ -23,6 +23,31 @@ read-only AWS diagnostic → Amazon Bedrock analysis → incident report → das
 Nothing in the UI is faked: unavailable components are shown as unavailable.
 
 ![Landing](docs/screenshots/landing-desktop.png)
+
+### Workflow Diagram
+
+![Workflow Diagram](p1.png)
+
+![Workflow Diagram](p2.png)
+
+### Decider 2B: setup and verification status
+
+```bash
+pip install strands-decider        # pulls torch; downloads StrandsAgents/strands-decider-2B-hobson-v19 on first run
+strands-decider serve StrandsAgents/strands-decider-2B-hobson-v19 --port 9000
+# then set INCIDENTPILOT_DECIDER_URL=http://localhost:9000 in .env
+cd backend && python scripts/eval_decider.py http://localhost:9000   # real-model smoke check
+INCIDENTPILOT_DECIDER_URL=http://localhost:9000 pytest -m live_decider -s
+```
+
+Without `INCIDENTPILOT_DECIDER_URL` (or if the server is down) the app shows Decider as
+**unavailable** and `/api/v1/decision/run` returns 503. There is no fallback decision.
+
+**Verified:** request/response handling against the vendored real wire schema, the
+confidence gate, error paths, the API, and the UI, using test doubles for the network.
+**Not verified:** inference with the real model. It could not be downloaded in the
+development sandbox. The `live_decider` tests and `scripts/eval_decider.py` exist to
+check it and are skipped/fail-safe without a server.
 
 ## Run locally
 

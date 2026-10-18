@@ -12,14 +12,20 @@ Auth: if `INCIDENTPILOT_API_KEY` is set, all `/api/v1/*` endpoints require heade
 | GET | `/health` | Liveness, mode, per-component availability | Real |
 | GET | `/api/v1/incidents` | List incidents | Simulation catalogue (5 scenarios, metadata only). Live mode returns empty list + notice |
 | GET | `/api/v1/incidents/{id}` | Incident detail | Real for simulation; 404 unknown; 501 in live mode |
-| GET | `/api/v1/decision/status` | Is Decider 2B usable, option set, threshold | Always `available: false` until Phase 2 |
-| POST | `/api/v1/decision/run` | Run Decider 2B tool selection `{incident_id}` | Returns 503 while unavailable. Never returns a fabricated decision |
+| GET | `/api/v1/decision/status` | Probes the Decider server; option set, threshold | `available: true` only if `INCIDENTPILOT_DECIDER_URL` answers `/health` |
+| POST | `/api/v1/decision/run` | Real Decider 2B tool selection `{incident_id}` | 200 with the model's own numbers; 503 if unavailable; 502 if the server answers invalidly; 404 unknown; 501 live mode. Never a fabricated decision |
 
 ## Decision contract
 
-`DecisionResult` fields `confidence` and `latency_ms` are nullable: null means the
-model did not produce / we did not measure it, never zero. `outcome` is one of
-`tool_invoked`, `escalated_low_confidence`, `unavailable`.
+`DecisionResult` carries the whole trace: `input_state` (structured), `state_text` (the
+exact text the model read), `question`, `options`, `selected`, `confidence` and
+`probabilities` (the model's own values, unmodified), `model`, `latency_ms`
+(server-reported; null if absent), `roundtrip_ms` (measured by the API),
+`confidence_threshold`, `meets_threshold`, `outcome`, `reason`.
+
+`outcome`: `tool_selected` (confident), `evidence_requested` (below threshold or the model
+chose `collect_more_evidence`), `human_review` (evidence rounds exhausted).
+`tool_invoked` is always `null` until diagnostic tools exist (Phase 4).
 
 Typed options (`ToolOption`): `investigate_load_balancer`, `investigate_ec2`,
 `investigate_database`, `investigate_cloudwatch_logs`, `collect_more_evidence`.

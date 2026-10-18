@@ -189,7 +189,7 @@
           "decision"
         ],
         "summary": "Run Decision",
-        "description": "Run Decider 2B tool selection for an incident.\n\nReturns 503 while the model adapter is unavailable. There is deliberately no\nfallback path: a non-model answer must never be presented as a Decider decision.",
+        "description": "Run real Decider 2B tool selection for an incident.\n\nThere is deliberately no fallback: if the model server is unavailable this returns\n503, and if it answers badly this returns 502. A non-model answer is never returned.",
         "operationId": "run_decision_api_v1_decision_run_post",
         "parameters": [
           {
@@ -278,12 +278,12 @@
       "DecisionOutcome": {
         "type": "string",
         "enum": [
-          "tool_invoked",
-          "escalated_low_confidence",
-          "unavailable"
+          "tool_selected",
+          "evidence_requested",
+          "human_review"
         ],
         "title": "DecisionOutcome",
-        "description": "What the agent did with the model's prediction."
+        "description": "What the confidence gate decided to do with the model's selection."
       },
       "DecisionRequest": {
         "properties": {
@@ -312,6 +312,11 @@
             "type": "object",
             "title": "Input State"
           },
+          "state_text": {
+            "type": "string",
+            "title": "State Text",
+            "description": "The exact text the model read."
+          },
           "question": {
             "type": "string",
             "title": "Question"
@@ -324,27 +329,31 @@
             "title": "Options"
           },
           "selected": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ToolOption"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/ToolOption"
           },
           "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence"
+          },
+          "probabilities": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Probabilities"
+          },
+          "model": {
             "anyOf": [
               {
-                "type": "number",
-                "maximum": 1.0,
-                "minimum": 0.0
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Confidence"
+            "title": "Model"
           },
           "latency_ms": {
             "anyOf": [
@@ -358,12 +367,25 @@
             ],
             "title": "Latency Ms"
           },
+          "roundtrip_ms": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Roundtrip Ms"
+          },
           "confidence_threshold": {
             "type": "number",
             "title": "Confidence Threshold"
           },
+          "meets_threshold": {
+            "type": "boolean",
+            "title": "Meets Threshold"
+          },
           "outcome": {
             "$ref": "#/components/schemas/DecisionOutcome"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
           },
           "tool_invoked": {
             "anyOf": [
@@ -374,18 +396,8 @@
                 "type": "null"
               }
             ],
-            "title": "Tool Invoked"
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
+            "title": "Tool Invoked",
+            "description": "Always null until diagnostic tools exist (Phase 4)."
           }
         },
         "type": "object",
@@ -393,12 +405,20 @@
           "incident_id",
           "mode",
           "input_state",
+          "state_text",
           "question",
           "options",
+          "selected",
+          "confidence",
+          "probabilities",
+          "roundtrip_ms",
           "confidence_threshold",
-          "outcome"
+          "meets_threshold",
+          "outcome",
+          "reason"
         ],
-        "title": "DecisionResult"
+        "title": "DecisionResult",
+        "description": "One real Decider 2B inference. `confidence` and `probabilities` are the model's own\nnumbers, unmodified. `latency_ms` is the server-reported inference time (null if the\nserver did not report it); `roundtrip_ms` is measured by this API."
       },
       "DecisionStatus": {
         "properties": {

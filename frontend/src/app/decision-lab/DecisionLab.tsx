@@ -9,7 +9,9 @@ import { useApi } from "@/lib/useApi";
 import type { DecisionResult } from "@/lib/types";
 import {
   AvailabilityPill,
+  ConfidenceMeter,
   ErrorBanner,
+  OptionBars,
   Loading,
   ModeBadge,
   PageHeader,
@@ -188,24 +190,65 @@ export default function DecisionLab() {
   );
 }
 
+const OUTCOME_UI: Record<DecisionResult["outcome"], { label: string; cls: string; glyph: string }> = {
+  tool_selected: { label: "Tool selected", cls: "border-ok/50 text-ok", glyph: "●" },
+  evidence_requested: { label: "Collect more evidence", cls: "border-warn/50 text-warn", glyph: "▲" },
+  human_review: { label: "Human review needed", cls: "border-crit/50 text-crit", glyph: "✖" },
+};
+
 function ResultView({ result }: { result: DecisionResult }) {
+  const o = OUTCOME_UI[result.outcome];
   return (
-    <dl className="grid gap-3 text-sm sm:grid-cols-2">
-      <Row label="Question" value={result.question} wide />
-      <Row label="Selected option" value={result.selected ?? "—"} mono />
-      <Row
-        label="Confidence"
-        value={result.confidence === null ? "— (not reported)" : result.confidence.toFixed(3)}
-        mono
-      />
-      <Row
-        label="Latency"
-        value={result.latency_ms === null ? "— (not measured)" : `${result.latency_ms.toFixed(1)} ms`}
-        mono
-      />
-      <Row label="Outcome" value={result.outcome} mono />
-      <Row label="Tool invoked" value={result.tool_invoked ?? "—"} mono />
-    </dl>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-chip border px-2 py-0.5 font-mono text-[11px] ${o.cls}`}
+        >
+          <span aria-hidden>{o.glyph}</span>
+          {o.label}
+        </span>
+        <ModeBadge mode={result.mode} />
+        {result.model && (
+          <span className="font-mono text-xs text-text-faint">model: {result.model}</span>
+        )}
+      </div>
+      <dl className="grid gap-3 text-sm sm:grid-cols-2">
+        <Row label="Question" value={result.question} wide />
+        <Row label="Selected option" value={result.selected} mono />
+        <Row
+          label="Decider latency"
+          value={result.latency_ms === null ? "— (not reported by server)" : `${result.latency_ms.toFixed(1)} ms`}
+          mono
+        />
+        <Row label="Round trip (API)" value={`${result.roundtrip_ms.toFixed(1)} ms`} mono />
+        <Row
+          label="Tool invoked"
+          value={result.tool_invoked ?? "— (diagnostic tools arrive in Phase 4)"}
+          mono
+        />
+      </dl>
+      <div>
+        <p className="mb-2 text-sm text-text-faint">Confidence</p>
+        <ConfidenceMeter value={result.confidence} threshold={result.confidence_threshold} />
+      </div>
+      <p className="text-sm text-text-dim">{result.reason}</p>
+      <div>
+        <p className="mb-2 text-sm text-text-faint">Option probabilities (model output)</p>
+        <OptionBars
+          options={result.options}
+          probabilities={result.probabilities}
+          selected={result.selected}
+        />
+      </div>
+      <details className="rounded-card border border-border bg-surface-2/50 p-3">
+        <summary className="min-h-6 cursor-pointer text-sm text-text-dim">
+          Input state sent to the model
+        </summary>
+        <pre className="mt-3 overflow-x-auto whitespace-pre-wrap font-mono text-xs text-text-dim">
+          {result.state_text}
+        </pre>
+      </details>
+    </div>
   );
 }
 

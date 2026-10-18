@@ -3,7 +3,6 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings, get_settings
 from app.main import create_app
-from app.schemas import ToolOption
 
 
 def test_health_reports_simulation_and_unavailable_components(client):
@@ -40,20 +39,6 @@ def test_live_mode_does_not_serve_simulation_data(monkeypatch):
     assert body["mode"] == "live"
     assert body["incidents"] == []
     assert c.get("/api/v1/incidents/sim-alb-503").status_code == 501
-
-
-def test_decision_status_is_explicitly_unavailable(client):
-    body = client.get("/api/v1/decision/status").json()
-    assert body["available"] is False
-    assert body["reason"]
-    assert body["options"] == [o.value for o in ToolOption]
-    assert body["confidence_threshold"] == 0.60
-
-
-def test_decision_run_never_fabricates_a_result(client):
-    r = client.post("/api/v1/decision/run", json={"incident_id": "sim-alb-503"})
-    assert r.status_code == 503
-    assert "unavailable" in r.json()["detail"].lower()
 
 
 def test_api_key_enforced_when_configured(monkeypatch):

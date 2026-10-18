@@ -128,3 +128,77 @@ export function MetricCard({ label, value, caption }: { label: string; value: st
     </div>
   );
 }
+
+/** Confidence bar with the escalation threshold marked. `value` is null when not reported. */
+export function ConfidenceMeter({ value, threshold }: { value: number | null; threshold: number }) {
+  const pct = value === null ? 0 : Math.round(value * 1000) / 10;
+  const meets = value !== null && value >= threshold;
+  return (
+    <div>
+      <div className="flex items-baseline justify-between">
+        <span className="tabular font-mono text-2xl">{value === null ? "—" : value.toFixed(3)}</span>
+        <span className={`font-mono text-xs ${meets ? "text-ok" : "text-warn"}`}>
+          {value === null ? "not reported" : meets ? "✓ meets threshold" : "▲ below threshold"}
+        </span>
+      </div>
+      <div
+        role="meter"
+        aria-label="Model confidence"
+        aria-valuemin={0}
+        aria-valuemax={1}
+        aria-valuenow={value ?? undefined}
+        aria-valuetext={value === null ? "not reported" : `${value.toFixed(3)}, threshold ${threshold.toFixed(2)}`}
+        className="relative mt-2 h-2 rounded-full bg-surface-2"
+      >
+        <div
+          className={`h-full rounded-full ${meets ? "bg-ok" : "bg-warn"}`}
+          style={{ width: `${pct}%` }}
+        />
+        <span
+          aria-hidden
+          className="absolute -top-1 h-4 w-0.5 bg-text"
+          style={{ left: `${threshold * 100}%` }}
+          title={`Threshold ${threshold.toFixed(2)}`}
+        />
+      </div>
+      <p className="mt-1 text-xs text-text-faint">Marker = escalation threshold {threshold.toFixed(2)}</p>
+    </div>
+  );
+}
+
+/** Per-option probabilities as reported by the model; the selected option is highlighted. */
+export function OptionBars({
+  options,
+  probabilities,
+  selected,
+}: {
+  options: string[];
+  probabilities: Record<string, number>;
+  selected: string;
+}) {
+  return (
+    <ul className="space-y-2">
+      {options.map((o) => {
+        const p = probabilities[o];
+        const isSel = o === selected;
+        return (
+          <li key={o}>
+            <div className="flex items-center justify-between gap-3 font-mono text-xs">
+              <span className={isSel ? "text-indigo" : "text-text-dim"}>
+                {isSel ? "● " : "○ "}
+                {o}
+              </span>
+              <span className="tabular text-text-dim">{p === undefined ? "—" : p.toFixed(3)}</span>
+            </div>
+            <div className="mt-1 h-1.5 rounded-full bg-surface-2">
+              <div
+                className={`h-full rounded-full ${isSel ? "bg-indigo" : "bg-text-faint/50"}`}
+                style={{ width: `${(p ?? 0) * 100}%` }}
+              />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}

@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     api_key: str = ""
     decider_confidence_threshold: float = Field(default=0.60, ge=0.0, le=1.0)
     bedrock_model_id: str = ""
+    decider_url: str = ""  # base URL of `strands-decider serve`; empty = not configured
+    decider_timeout_s: float = Field(default=10.0, gt=0.0, le=120.0)
 
     @field_validator("cors_origins")
     @classmethod

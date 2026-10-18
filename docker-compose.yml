@@ -16,6 +16,10 @@ services:
     env_file:
       - path: .env
         required: false
+    environment:
+      # Reachable only when the optional `decider` profile is running; otherwise the
+      # API reports Decider 2B as unavailable (it never fakes a decision).
+      INCIDENTPILOT_DECIDER_URL: http://decider:9000
     expose:
       - "8000"
     healthcheck:
@@ -28,3 +32,15 @@ services:
     build: ./frontend
     expose:
       - "3000"
+
+  # Optional: `docker compose --profile decider up --build`
+  decider:
+    profiles: ["decider"]
+    build: ./decider
+    expose:
+      - "9000"
+    volumes:
+      - hf-cache:/root/.cache/huggingface
+
+volumes:
+  hf-cache:
