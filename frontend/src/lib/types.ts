@@ -77,3 +77,91 @@ export interface DecisionResult {
   /** Always null until diagnostic tools exist (Phase 4). */
   tool_invoked: string | null;
 }
+
+// ---- Phase 3: reports (mirrors backend/app/agent/report.py) ----
+
+export type EvidenceSource = "alb" | "ec2" | "rds" | "cloudwatch_alarm" | "change" | "log";
+
+export interface EvidenceItem {
+  id: string;
+  source: EvidenceSource;
+  text: string;
+}
+
+export interface EvidenceBundle {
+  incident_id: string;
+  mode: Mode;
+  items: EvidenceItem[];
+}
+
+export interface Fact {
+  statement: string;
+  evidence_ids: string[];
+}
+
+export interface Hypothesis {
+  statement: string;
+  evidence_ids: string[];
+  what_would_confirm: string;
+  plausibility: "leading" | "possible" | "unlikely";
+}
+
+export interface RootCause {
+  description: string;
+  basis: "confirmed" | "hypothesis";
+  evidence_ids: string[];
+}
+
+export interface RecommendedAction {
+  description: string;
+  kind: "read_only_check" | "human_executed_change";
+  risk: "low" | "medium" | "high";
+  rationale: string;
+  evidence_ids: string[];
+}
+
+export interface IncidentAnalysis {
+  summary: string;
+  confirmed_facts: Fact[];
+  hypotheses: Hypothesis[];
+  probable_root_causes: RootCause[];
+  recommended_actions: RecommendedAction[];
+  impact_assessment: string;
+  evidence_gaps: string[];
+}
+
+export interface GroundingReport {
+  facts_kept: number;
+  facts_demoted: number;
+  root_causes_demoted: number;
+  evidence_ids_removed: number;
+  warnings: string[];
+}
+
+export interface Generation {
+  ai_generated: boolean;
+  provider: string;
+  model_id: string;
+  region: string;
+  latency_ms: number;
+}
+
+export type ReportStatus =
+  | "complete"
+  | "needs_more_evidence"
+  | "needs_human_review"
+  | "analysis_only";
+
+export interface IncidentReport {
+  id: string;
+  created_at: string;
+  mode: Mode;
+  status: ReportStatus;
+  incident: IncidentSummary;
+  decision: DecisionResult | null;
+  evidence: EvidenceBundle;
+  analysis: IncidentAnalysis;
+  grounding: GroundingReport;
+  generation: Generation;
+  advisory_notice: string;
+}

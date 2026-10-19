@@ -30,7 +30,30 @@ chose `collect_more_evidence`), `human_review` (evidence rounds exhausted).
 Typed options (`ToolOption`): `investigate_load_balancer`, `investigate_ec2`,
 `investigate_database`, `investigate_cloudwatch_logs`, `collect_more_evidence`.
 
+## Investigations and reports (Phase 3)
+
+| Method | Path | Behavior |
+|---|---|---|
+| POST | `/api/v1/investigations` | `{incident_id, require_decision=true}`. Runs Decider 2B, then Amazon Bedrock analysis via the Strands Agents SDK, grounds the output, stores and returns an `IncidentReport`. 503 if Decider (when required) or Bedrock is unavailable/unconfigured (`Retry-After` on transient errors); 502 if Bedrock's answer is unusable; 404 unknown incident; 501 live mode. Nothing is stored on failure and nothing is mocked |
+| GET | `/api/v1/reports` | Stored reports, newest first |
+| GET | `/api/v1/reports/{id}` | One report; 404 for unknown or malformed ids |
+
+`IncidentReport`: `id`, `created_at`, `mode`, `status` (`complete`, `needs_more_evidence`,
+`needs_human_review`, `analysis_only`), `incident`, `decision` (the full `DecisionResult`, or
+null for `analysis_only`), `evidence` (numbered items E1..En the model may cite),
+`analysis`, `grounding`, `generation` (`ai_generated`, model id, region, latency),
+`advisory_notice`.
+
+`analysis` keeps **confirmed_facts** (each cites evidence ids and is checked against them)
+separate from **hypotheses** (with `what_would_confirm`), `probable_root_causes`,
+`recommended_actions` (`read_only_check` or `human_executed_change`, with risk),
+`impact_assessment`, `evidence_gaps`. `grounding` reports facts kept/demoted and unknown
+evidence ids removed. Model output is untrusted: a fact without valid evidence, or stating
+a number absent from the cited evidence, is demoted to a hypothesis.
+
+In Phase 3 the evidence bundle comes from the simulation data. The Decider's selected tool
+is recorded, but real tool execution arrives in Phase 4.
+
 ## Planned (not yet implemented)
 
-- Phase 3: `POST /api/v1/investigations` (agent run), `GET /api/v1/reports`
 - Phase 4: live evidence and tool-output payloads

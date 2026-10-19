@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
+from app.agent.analyzer import bedrock_status
 from app.config import Settings, get_settings
 from app.decision_status import current_decision_status
 from app.deps import get_decider_client
@@ -17,6 +18,7 @@ def health(
     client: DeciderClient | None = Depends(get_decider_client),
 ) -> HealthResponse:
     decision = current_decision_status(settings, client)
+    bedrock_ok, bedrock_detail = bedrock_status(settings)
     return HealthResponse(
         mode=settings.mode,
         components=[
@@ -24,11 +26,7 @@ def health(
             ComponentStatus(
                 name="decider_2b", available=decision.available, detail=decision.reason
             ),
-            ComponentStatus(
-                name="bedrock_agent",
-                available=False,
-                detail="Not implemented yet (Phase 3).",
-            ),
+            ComponentStatus(name="bedrock_agent", available=bedrock_ok, detail=bedrock_detail),
             ComponentStatus(
                 name="aws_diagnostics",
                 available=False,

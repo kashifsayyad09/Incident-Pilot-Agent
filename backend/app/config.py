@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import StrEnum
 from functools import lru_cache
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +31,16 @@ class Settings(BaseSettings):
     api_key: str = ""
     decider_confidence_threshold: float = Field(default=0.60, ge=0.0, le=1.0)
     bedrock_model_id: str = ""
+    aws_region: str = Field(
+        default="us-east-1",
+        validation_alias=AliasChoices(
+            "INCIDENTPILOT_AWS_REGION", "AWS_REGION", "AWS_DEFAULT_REGION"
+        ),
+    )
+    bedrock_temperature: float = Field(default=0.1, ge=0.0, le=1.0)
+    bedrock_max_tokens: int = Field(default=4096, ge=256, le=32000)
+    bedrock_timeout_s: float = Field(default=60.0, gt=0.0, le=300.0)
+    data_dir: str = "data"  # report store; git-ignored
     decider_url: str = ""  # base URL of `strands-decider serve`; empty = not configured
     decider_timeout_s: float = Field(default=10.0, gt=0.0, le=120.0)
 

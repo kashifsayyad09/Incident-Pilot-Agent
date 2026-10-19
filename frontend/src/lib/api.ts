@@ -1,4 +1,10 @@
-import type { DecisionResult, DecisionStatus, HealthResponse, IncidentList } from "./types";
+import type {
+  DecisionResult,
+  DecisionStatus,
+  HealthResponse,
+  IncidentList,
+  IncidentReport,
+} from "./types";
 
 // Same-origin: nginx (docker) or Next.js rewrites (npm run dev) route to the backend.
 export const API_BASE = "";
@@ -43,4 +49,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ incident_id }),
     }),
+  runInvestigation: (incident_id: string, require_decision = true) =>
+    request<IncidentReport>("/api/v1/investigations", {
+      method: "POST",
+      body: JSON.stringify({ incident_id, require_decision }),
+    }),
+  reports: () => request<IncidentReport[]>("/api/v1/reports"),
 };

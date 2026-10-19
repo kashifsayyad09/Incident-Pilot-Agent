@@ -8,7 +8,7 @@ Hackathon** (category: Tool Selection, `#strands-decider-2b #tool-selection`).
 **Pipeline:** Incident → Strands Decider 2B picks the next diagnostic tool →
 read-only AWS diagnostic → Amazon Bedrock analysis → incident report → dashboard.
 
-## Status: Phase 2 (Decider 2B tool selection) complete, pending live-model verification
+## Status: Phase 3 (Bedrock analysis agent) complete, pending live Decider/Bedrock verification
 
 | Area | State |
 |---|---|
@@ -16,9 +16,10 @@ read-only AWS diagnostic → Amazon Bedrock analysis → incident report → das
 | Next.js frontend: 5 routes, sidebar app shell, R3F 3D background, GSAP motion, mode badge, API client | Done, builds, screenshot-checked in headless Chromium |
 | Simulation catalogue (5 scenarios, metadata only) | Done |
 | Decider 2B tool selection (`backend/decision_patterns/tool_selection/`) | Implemented against the real `strands-decider` System One API; confidence-gated; reusable pattern with guide. **Not yet run against the real model** (see below) |
-| Bedrock / Strands agent | **Not implemented** (Phase 3) |
+| Bedrock / Strands agent (`backend/app/agent/`) | Implemented: structured analysis, evidence-id grounding, report store, `/api/v1/investigations`. Tested with a Bedrock reply test double and the real offline path; **no real Bedrock call has been made** (see below) |
 | AWS diagnostics (CloudWatch, ALB, EC2, RDS) | **Not implemented** (Phase 4) |
-| Live metrics, evidence panels, report export | **Not implemented** (need Phases 2-4); shown as “—” / unavailable |
+| Live metrics | **Not implemented** (need Phase 4); shown as “—” / unavailable |
+| Reports (history, detail, JSON/Markdown export) | Done for simulation incidents |
 
 Nothing in the UI is faked: unavailable components are shown as unavailable.
 
@@ -29,6 +30,22 @@ Nothing in the UI is faked: unavailable components are shown as unavailable.
 ![Workflow Diagram](p1.png)
 
 ![Workflow Diagram](p2.png)
+
+### Amazon Bedrock: setup and verification status
+
+```bash
+aws bedrock list-inference-profiles --region us-east-1     # pick one enabled in your account
+# .env: INCIDENTPILOT_BEDROCK_MODEL_ID=<id>  AWS_REGION=<region>  (IAM role / SSO, no keys in files)
+cd backend && pytest -m live_bedrock -s                     # one real call; skipped if not configured
+```
+
+Without a model id or credentials `/api/v1/investigations` returns 503; no report is ever
+fabricated. Reports are labelled AI-generated and advisory; confirmed facts are checked
+against numbered evidence and demoted to hypotheses when unsupported.
+
+**Verified:** Strands structured-output wiring against a stubbed Bedrock reply, the real
+no-credentials failure path, error mapping, grounding, the API and UI.
+**Not verified:** a real Bedrock call (no AWS credentials in the development sandbox).
 
 ### Decider 2B: setup and verification status
 

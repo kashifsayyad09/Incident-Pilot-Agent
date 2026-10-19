@@ -189,7 +189,7 @@
           "decision"
         ],
         "summary": "Run Decision",
-        "description": "Run real Decider 2B tool selection for an incident.\n\nThere is deliberately no fallback: if the model server is unavailable this returns\n503, and if it answers badly this returns 502. A non-model answer is never returned.",
+        "description": "Run real Decider 2B tool selection. There is no fallback: 503 if the model server is\nunavailable, 502 if it answers invalidly.",
         "operationId": "run_decision_api_v1_decision_run_post",
         "parameters": [
           {
@@ -242,10 +242,227 @@
           }
         }
       }
+    },
+    "/api/v1/investigations": {
+      "post": {
+        "tags": [
+          "investigations"
+        ],
+        "summary": "Create Investigation",
+        "description": "Run the full pipeline and store the report.\n\nDecider 2B and Bedrock are both real calls. If either is unavailable the request fails\n(503/502); nothing is mocked. `require_decision=false` skips Decider and marks the\nreport `analysis_only`.",
+        "operationId": "create_investigation_api_v1_investigations_post",
+        "parameters": [
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvestigationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports": {
+      "get": {
+        "tags": [
+          "investigations"
+        ],
+        "summary": "List Reports",
+        "operationId": "list_reports_api_v1_reports_get",
+        "parameters": [
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IncidentReport"
+                  },
+                  "title": "Response List Reports Api V1 Reports Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{report_id}": {
+      "get": {
+        "tags": [
+          "investigations"
+        ],
+        "summary": "Get Report",
+        "operationId": "get_report_api_v1_reports__report_id__get",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Report Id"
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "Action": {
+        "properties": {
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "What a human operator should do."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "read_only_check",
+              "human_executed_change"
+            ],
+            "title": "Kind",
+            "description": "read_only_check inspects only; human_executed_change alters something and needs a person."
+          },
+          "risk": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Risk"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "description",
+          "kind",
+          "risk",
+          "rationale"
+        ],
+        "title": "Action"
+      },
       "ComponentStatus": {
         "properties": {
           "name": {
@@ -469,6 +686,152 @@
         ],
         "title": "DecisionStatus"
       },
+      "EvidenceBundle": {
+        "properties": {
+          "incident_id": {
+            "type": "string",
+            "title": "Incident Id"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/Mode"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "incident_id",
+          "mode",
+          "items"
+        ],
+        "title": "EvidenceBundle"
+      },
+      "EvidenceItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "alb",
+              "ec2",
+              "rds",
+              "cloudwatch_alarm",
+              "change",
+              "log"
+            ],
+            "title": "Source"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "text"
+        ],
+        "title": "EvidenceItem"
+      },
+      "Fact": {
+        "properties": {
+          "statement": {
+            "type": "string",
+            "title": "Statement",
+            "description": "A fact stated directly by the cited evidence. Do not compute or infer."
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids",
+            "description": "Ids of the evidence items stating it, e.g. E2."
+          }
+        },
+        "type": "object",
+        "required": [
+          "statement",
+          "evidence_ids"
+        ],
+        "title": "Fact"
+      },
+      "Generation": {
+        "properties": {
+          "ai_generated": {
+            "type": "boolean",
+            "title": "Ai Generated",
+            "default": true
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": "Amazon Bedrock via Strands Agents SDK"
+          },
+          "model_id": {
+            "type": "string",
+            "title": "Model Id"
+          },
+          "region": {
+            "type": "string",
+            "title": "Region"
+          },
+          "latency_ms": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Latency Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_id",
+          "region",
+          "latency_ms"
+        ],
+        "title": "Generation"
+      },
+      "GroundingReport": {
+        "properties": {
+          "facts_kept": {
+            "type": "integer",
+            "title": "Facts Kept",
+            "default": 0
+          },
+          "facts_demoted": {
+            "type": "integer",
+            "title": "Facts Demoted",
+            "default": 0
+          },
+          "root_causes_demoted": {
+            "type": "integer",
+            "title": "Root Causes Demoted",
+            "default": 0
+          },
+          "evidence_ids_removed": {
+            "type": "integer",
+            "title": "Evidence Ids Removed",
+            "default": 0
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "title": "GroundingReport"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -512,6 +875,106 @@
         ],
         "title": "HealthResponse"
       },
+      "Hypothesis": {
+        "properties": {
+          "statement": {
+            "type": "string",
+            "title": "Statement",
+            "description": "A possible explanation that the evidence suggests but does not prove."
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids",
+            "description": "Evidence consistent with it."
+          },
+          "what_would_confirm": {
+            "type": "string",
+            "title": "What Would Confirm",
+            "description": "The specific check or data that would confirm or refute it."
+          },
+          "plausibility": {
+            "type": "string",
+            "enum": [
+              "leading",
+              "possible",
+              "unlikely"
+            ],
+            "title": "Plausibility"
+          }
+        },
+        "type": "object",
+        "required": [
+          "statement",
+          "what_would_confirm",
+          "plausibility"
+        ],
+        "title": "Hypothesis"
+      },
+      "IncidentAnalysis": {
+        "properties": {
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "description": "Two or three sentences for an on-call engineer."
+          },
+          "confirmed_facts": {
+            "items": {
+              "$ref": "#/components/schemas/Fact"
+            },
+            "type": "array",
+            "title": "Confirmed Facts"
+          },
+          "hypotheses": {
+            "items": {
+              "$ref": "#/components/schemas/Hypothesis"
+            },
+            "type": "array",
+            "title": "Hypotheses"
+          },
+          "probable_root_causes": {
+            "items": {
+              "$ref": "#/components/schemas/RootCause"
+            },
+            "type": "array",
+            "title": "Probable Root Causes"
+          },
+          "recommended_actions": {
+            "items": {
+              "$ref": "#/components/schemas/Action"
+            },
+            "type": "array",
+            "title": "Recommended Actions",
+            "description": "Ordered; read-only checks first."
+          },
+          "impact_assessment": {
+            "type": "string",
+            "title": "Impact Assessment",
+            "description": "Only impact the evidence supports, otherwise exactly: 'Not determinable from the available evidence.'"
+          },
+          "evidence_gaps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Gaps",
+            "description": "Data that is missing or not measured and would help."
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary",
+          "confirmed_facts",
+          "hypotheses",
+          "probable_root_causes",
+          "recommended_actions",
+          "impact_assessment",
+          "evidence_gaps"
+        ],
+        "title": "IncidentAnalysis"
+      },
       "IncidentList": {
         "properties": {
           "mode": {
@@ -542,6 +1005,69 @@
           "incidents"
         ],
         "title": "IncidentList"
+      },
+      "IncidentReport": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/Mode"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReportStatus"
+          },
+          "incident": {
+            "$ref": "#/components/schemas/IncidentSummary"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecisionResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/EvidenceBundle"
+          },
+          "analysis": {
+            "$ref": "#/components/schemas/IncidentAnalysis"
+          },
+          "grounding": {
+            "$ref": "#/components/schemas/GroundingReport"
+          },
+          "generation": {
+            "$ref": "#/components/schemas/Generation"
+          },
+          "advisory_notice": {
+            "type": "string",
+            "title": "Advisory Notice",
+            "default": "AI-generated, advisory only. IncidentPilot is read-only and never changes AWS resources. A person must review and carry out any change."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "mode",
+          "status",
+          "incident",
+          "decision",
+          "evidence",
+          "analysis",
+          "grounding",
+          "generation"
+        ],
+        "title": "IncidentReport"
       },
       "IncidentSummary": {
         "properties": {
@@ -587,6 +1113,24 @@
         ],
         "title": "IncidentSummary"
       },
+      "InvestigationRequest": {
+        "properties": {
+          "incident_id": {
+            "type": "string",
+            "title": "Incident Id"
+          },
+          "require_decision": {
+            "type": "boolean",
+            "title": "Require Decision",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "incident_id"
+        ],
+        "title": "InvestigationRequest"
+      },
       "Mode": {
         "type": "string",
         "enum": [
@@ -595,6 +1139,46 @@
         ],
         "title": "Mode",
         "description": "Data source for incident evidence. Always surfaced to the UI."
+      },
+      "ReportStatus": {
+        "type": "string",
+        "enum": [
+          "complete",
+          "needs_more_evidence",
+          "needs_human_review",
+          "analysis_only"
+        ],
+        "title": "ReportStatus"
+      },
+      "RootCause": {
+        "properties": {
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "basis": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "hypothesis"
+            ],
+            "title": "Basis",
+            "description": "'confirmed' only if the cited evidence directly establishes it."
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "description",
+          "basis"
+        ],
+        "title": "RootCause"
       },
       "ServiceKind": {
         "type": "string",

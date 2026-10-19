@@ -38,7 +38,7 @@ from decision_patterns.tool_selection import HttpDeciderClient, ToolSelectionPat
 
 pattern = ToolSelectionPattern(
     question="Which tool should the agent call next?",
-    options={                                   # {option_id: description}
+    options={  # {option_id: description}
         "search_orders": "The user asks about an existing order, delivery or refund.",
         "search_docs": "The user asks how a product or policy works.",
         "collect_more_evidence": "The request is too vague to pick a tool.",
@@ -48,7 +48,12 @@ pattern = ToolSelectionPattern(
 )
 
 d = pattern.decide("Where is my package? It was due on Tuesday.")
-d.selected, d.confidence, d.latency_ms, d.action   # action: invoke_tool | collect_more_evidence | human_review
+(
+    d.selected,
+    d.confidence,
+    d.latency_ms,
+    d.action,
+)  # action: invoke_tool | collect_more_evidence | human_review
 ```
 
 See `example.py`. Copy `decision_patterns/tool_selection/` into your repo; it depends only

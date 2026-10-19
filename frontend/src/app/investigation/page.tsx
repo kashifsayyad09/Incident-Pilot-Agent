@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import type { IncidentReport } from "@/lib/types";
+import { ReportView } from "@/components/ReportView";
 import { useApi } from "@/lib/useApi";
 import { MM_FULL, gsap, useGSAP } from "@/lib/motion";
 import { useDefaultSelection, useIncidentState } from "@/lib/incidentStore";
@@ -15,6 +17,7 @@ import {
   PageHeader,
   Panel,
   SeverityPill,
+  UnavailableBanner,
 } from "@/components/ui";
 
 const STEPS = [
@@ -36,6 +39,20 @@ export default function Investigation() {
   const { selected } = useIncidentState();
   const page = useReveal<HTMLDivElement>([health.status, incidents.status]);
   const line = useRef<HTMLDivElement>(null);
+  const [run, setRun] = useState<
+    | { status: "idle" }
+    | { status: "running" }
+    | { status: "error"; code: number | null; error: string }
+    | { status: "done"; report: IncidentReport }
+  >({ status: "idle" });
+  const [useDecider, setUseDecider] = useState(true);
+
+  async function runInvestigation() {
+    if (!selected) return;
+    setRun({ status: "running" });
+    const r = await api.runInvestigation(selected.id, useDecider);
+    setRun(r.ok ? { status: "done", report: r.data } : { status: "error", code: r.status, error: r.error });
+  }
 
   useGSAP(
     () => {
@@ -152,6 +169,53 @@ export default function Investigation() {
           </p>
         </Panel>
       </div>
+
+      <Panel title="Run full investigation" className="mt-6">
+        <p className="text-sm text-text-dim">
+          Runs Decider 2B, then Amazon Bedrock through the Strands Agents SDK on the evidence for
+          the selected incident. Both are real calls: if either is unavailable you get the reason
+          here, not a made-up report. Nothing in AWS is changed.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          <button
+            type="button"
+            onClick={runInvestigation}
+            disabled={!selected || run.status === "running"}
+            className="min-h-11 rounded-btn bg-cyan px-5 font-semibold text-[#031018] transition active:scale-[0.97] disabled:opacity-50"
+          >
+            {run.status === "running" ? "Investigating…" : "Run full investigation"}
+          </button>
+          <label className="flex min-h-11 items-center gap-2 text-sm text-text-dim">
+            <input
+              type="checkbox"
+              checked={useDecider}
+              onChange={(e) => setUseDecider(e.target.checked)}
+              className="h-4 w-4 accent-cyan"
+            />
+            Use Decider 2B (uncheck for Bedrock analysis only)
+          </label>
+        </div>
+        <div className="mt-4" aria-live="polite">
+          {run.status === "error" &&
+            (run.code === 503 ? (
+              <UnavailableBanner title="A required component is unavailable" reason={run.error} />
+            ) : (
+              <ErrorBanner error={run.error} />
+            ))}
+          {run.status === "done" && (
+            <>
+              <p className="mb-4 text-sm text-ok">
+                Report saved. Find it later under{" "}
+                <Link className="underline" href="/reports">
+                  Reports
+                </Link>
+                .
+              </p>
+              <ReportView report={run.report} />
+            </>
+          )}
+        </div>
+      </Panel>
     </div>
   );
 }

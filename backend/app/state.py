@@ -47,8 +47,12 @@ class IncidentState(BaseModel):
     log_excerpts: list[str] = Field(default_factory=list)
 
 
-def _v(x: object, unit: str = "") -> str:
+def fmt(x: object, unit: str = "") -> str:
+    """Render a possibly-unmeasured value. None is never shown as 0."""
     return "not measured" if x is None else f"{x}{unit}"
+
+
+_v = fmt
 
 
 def render_state_text(s: IncidentState) -> str:

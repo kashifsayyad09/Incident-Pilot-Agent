@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import decision, health, incidents
+from app.routers import decision, health, incidents, investigations
 from app.schemas import API_VERSION
 
 
@@ -24,6 +24,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(incidents.router)
     app.include_router(decision.router)
+    app.include_router(investigations.router)
     return app
 
 
