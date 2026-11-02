@@ -99,7 +99,7 @@ export default function Investigation() {
             </div>
           )}
           <p className="mt-4 border-t border-border pt-4 text-xs text-text-faint">
-            Metrics and logs for this incident appear here once AWS diagnostics are implemented.
+            The diagnostic tool output appears in the report after you run a full investigation.
           </p>
         </Panel>
 

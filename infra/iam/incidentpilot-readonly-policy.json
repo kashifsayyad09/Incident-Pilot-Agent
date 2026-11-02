@@ -1,0 +1,26 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadOnlyDiagnostics",
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:DescribeTargetHealth",
+        "elasticloadbalancing:DescribeTargetGroups",
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "cloudwatch:GetMetricData",
+        "cloudwatch:DescribeAlarms",
+        "ec2:DescribeInstances",
+        "ec2:DescribeInstanceStatus",
+        "rds:DescribeDBInstances"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ReadLogsFromOneLogGroup",
+      "Effect": "Allow",
+      "Action": ["logs:FilterLogEvents"],
+      "Resource": "arn:aws:logs:REGION:ACCOUNT_ID:log-group:LOG_GROUP_NAME:*"
+    }
+  ]
+}

@@ -5,9 +5,10 @@ from fastapi import APIRouter, Depends
 from app.config import Settings, get_settings
 from app.decision_service import run_decision as _run
 from app.decision_status import current_decision_status
-from app.deps import get_decider_client
+from app.deps import get_backend, get_decider_client
 from app.schemas import DecisionRequest, DecisionResult, DecisionStatus
 from app.security import require_api_key
+from app.tools.base import DiagnosticBackend
 from decision_patterns.tool_selection import DeciderClient
 
 router = APIRouter(
@@ -28,7 +29,8 @@ def run_decision(
     req: DecisionRequest,
     settings: Settings = Depends(get_settings),
     client: DeciderClient | None = Depends(get_decider_client),
+    backend: DiagnosticBackend = Depends(get_backend),
 ) -> DecisionResult:
     """Run real Decider 2B tool selection. There is no fallback: 503 if the model server is
     unavailable, 502 if it answers invalidly."""
-    return _run(req.incident_id, settings, client)
+    return _run(req.incident_id, settings, client, backend)

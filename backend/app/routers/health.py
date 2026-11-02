@@ -7,6 +7,7 @@ from app.config import Settings, get_settings
 from app.decision_status import current_decision_status
 from app.deps import get_decider_client
 from app.schemas import ComponentStatus, HealthResponse
+from app.tools.factory import diagnostics_status
 from decision_patterns.tool_selection import DeciderClient
 
 router = APIRouter(tags=["health"])
@@ -19,6 +20,7 @@ def health(
 ) -> HealthResponse:
     decision = current_decision_status(settings, client)
     bedrock_ok, bedrock_detail = bedrock_status(settings)
+    diag_ok, diag_detail = diagnostics_status(settings)
     return HealthResponse(
         mode=settings.mode,
         components=[
@@ -27,10 +29,6 @@ def health(
                 name="decider_2b", available=decision.available, detail=decision.reason
             ),
             ComponentStatus(name="bedrock_agent", available=bedrock_ok, detail=bedrock_detail),
-            ComponentStatus(
-                name="aws_diagnostics",
-                available=False,
-                detail="Not implemented yet (Phase 4).",
-            ),
+            ComponentStatus(name="aws_diagnostics", available=diag_ok, detail=diag_detail),
         ],
     )

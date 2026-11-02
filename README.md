@@ -8,7 +8,7 @@ Hackathon** (category: Tool Selection, `#strands-decider-2b #tool-selection`).
 **Pipeline:** Incident → Strands Decider 2B picks the next diagnostic tool →
 read-only AWS diagnostic → Amazon Bedrock analysis → incident report → dashboard.
 
-## Status: Phase 3 (Bedrock analysis agent) complete, pending live Decider/Bedrock verification
+## Status: Phase 4 (diagnostic tools, read-only AWS) complete, pending live Decider/Bedrock/AWS verification
 
 | Area | State |
 |---|---|
@@ -17,8 +17,7 @@ read-only AWS diagnostic → Amazon Bedrock analysis → incident report → das
 | Simulation catalogue (5 scenarios, metadata only) | Done |
 | Decider 2B tool selection (`backend/decision_patterns/tool_selection/`) | Implemented against the real `strands-decider` System One API; confidence-gated; reusable pattern with guide. **Not yet run against the real model** (see below) |
 | Bedrock / Strands agent (`backend/app/agent/`) | Implemented: structured analysis, evidence-id grounding, report store, `/api/v1/investigations`. Tested with a Bedrock reply test double and the real offline path; **no real Bedrock call has been made** (see below) |
-| AWS diagnostics (CloudWatch, ALB, EC2, RDS) | **Not implemented** (Phase 4) |
-| Live metrics | **Not implemented** (need Phase 4); shown as “—” / unavailable |
+| Diagnostic tools (ALB, EC2, RDS, CloudWatch Logs) | Implemented: simulation backend (synthetic, labelled) and a live read-only Boto3 backend with an in-process allowlist; IAM templates in `infra/`. Tested with AWS reply test doubles; **no real AWS account has been called** |
 | Reports (history, detail, JSON/Markdown export) | Done for simulation incidents |
 
 Nothing in the UI is faked: unavailable components are shown as unavailable.
@@ -30,6 +29,23 @@ Nothing in the UI is faked: unavailable components are shown as unavailable.
 ![Workflow Diagram](p1.png)
 
 ![Workflow Diagram](p2.png)
+
+### Live mode (read-only AWS)
+
+```bash
+# .env
+INCIDENTPILOT_MODE=live
+INCIDENTPILOT_LIVE_TARGET_GROUP_ARN=arn:aws:elasticloadbalancing:...:targetgroup/...
+INCIDENTPILOT_LIVE_DB_INSTANCE_ID=my-db          # optional
+INCIDENTPILOT_LIVE_LOG_GROUP=/app/web            # optional
+```
+
+Live mode exposes one incident, `live-current`, built from CloudWatch alarms and headline
+metrics for the configured targets. After Decider 2B picks a diagnostic with enough
+confidence, that read-only tool runs and its findings join the evidence. Unconfigured
+parts are reported "not measured"; with no target configured the API answers 503 and never
+serves simulation data as live. Apply the least-privilege policy in `infra/iam/`; the app
+also refuses any API call outside its allowlist. **Not verified against a real AWS account.**
 
 ### Amazon Bedrock: setup and verification status
 

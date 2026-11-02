@@ -8,9 +8,8 @@ from app.config import Mode, Settings
 from app.decision_status import NOT_CONFIGURED
 from app.incident_pattern import build_pattern
 from app.schemas import DecisionOutcome, DecisionResult, ToolOption
-from app.simulation import catalog
-from app.simulation.evidence import get_evidence
 from app.state import IncidentState, render_state_text
+from app.tools.base import DiagnosticBackend, DiagnosticsError, DiagnosticsUnavailable
 from decision_patterns.tool_selection import (
     Action,
     DeciderClient,
@@ -25,27 +24,40 @@ _OUTCOME = {
 }
 
 
-def load_incident(incident_id: str, settings: Settings):
-    """Return (summary, state). Raises HTTPException 501/404."""
-    if settings.mode is Mode.LIVE:
-        raise HTTPException(status_code=501, detail="Live incident evidence arrives in Phase 4.")
-    incident = catalog.get_scenario(incident_id)
-    evidence = get_evidence(incident_id)
-    if incident is None or evidence is None:
+def load_incident(incident_id: str, backend: DiagnosticBackend):
+    """Return (summary, state). 404 unknown, 503 backend unavailable, 502 backend error."""
+    try:
+        found = backend.get_incident(incident_id)
+    except DiagnosticsUnavailable as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Diagnostics unavailable: {e}",
+            headers={"Retry-After": "10"} if e.retryable else None,
+        ) from e
+    except DiagnosticsError as e:
+        raise HTTPException(status_code=502, detail=f"Diagnostics failed: {e}") from e
+    if found is None:
         raise HTTPException(status_code=404, detail="Incident not found.")
-    return incident, evidence
+    return found
 
 
 def run_decision(
-    incident_id: str, settings: Settings, client: DeciderClient | None
+    incident_id: str,
+    settings: Settings,
+    client: DeciderClient | None,
+    backend: DiagnosticBackend,
 ) -> DecisionResult:
     """No fallback: unavailable -> 503, invalid server answer -> 502."""
-    incident, evidence = load_incident(incident_id, settings)
-    return decide_for(incident.id, evidence, settings, client)
+    incident, evidence = load_incident(incident_id, backend)
+    return decide_for(incident.id, evidence, settings, client, backend.mode)
 
 
 def decide_for(
-    incident_id: str, evidence: IncidentState, settings: Settings, client: DeciderClient | None
+    incident_id: str,
+    evidence: IncidentState,
+    settings: Settings,
+    client: DeciderClient | None,
+    mode: Mode = Mode.SIMULATION,
 ) -> DecisionResult:
     if client is None:
         raise HTTPException(
@@ -64,7 +76,7 @@ def decide_for(
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e)) from e
     return DecisionResult(
         incident_id=incident_id,
-        mode=Mode.SIMULATION,
+        mode=mode,
         input_state=evidence.model_dump(mode="json"),
         state_text=state_text,
         question=pattern.question,

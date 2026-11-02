@@ -14,6 +14,7 @@ from typing import Any, Protocol
 
 from app.config import Settings
 from app.schemas import DecisionResult
+from app.tools.base import ToolRun
 
 from .evidence import EvidenceBundle
 from .report import IncidentAnalysis
@@ -68,11 +69,16 @@ class IncidentAnalyzer(Protocol):
     region: str
 
     def analyze(
-        self, bundle: EvidenceBundle, decision: DecisionResult | None
+        self,
+        bundle: EvidenceBundle,
+        decision: DecisionResult | None,
+        tool_run: ToolRun | None = None,
     ) -> AnalyzerResult: ...
 
 
-def build_prompt(bundle: EvidenceBundle, decision: DecisionResult | None) -> str:
+def build_prompt(
+    bundle: EvidenceBundle, decision: DecisionResult | None, tool_run: ToolRun | None = None
+) -> str:
     lines = [
         f"Analyse incident {bundle.incident_id} (data mode: {bundle.mode.value}).",
         "",
@@ -93,6 +99,12 @@ def build_prompt(bundle: EvidenceBundle, decision: DecisionResult | None) -> str
                 "investigation, so be explicit about uncertainty and evidence gaps."
             )
         lines.append("")
+    if tool_run is not None:
+        lines += [
+            f"Diagnostic run: the read-only tool '{tool_run.tool.value}' ({tool_run.backend}) was "
+            "executed; its findings are the evidence items whose source is 'tool'.",
+            "",
+        ]
     lines.append("Produce the incident analysis.")
     return "\n".join(lines)
 
@@ -219,7 +231,12 @@ class StrandsBedrockAnalyzer:
             ),
         )
 
-    def analyze(self, bundle: EvidenceBundle, decision: DecisionResult | None) -> AnalyzerResult:
+    def analyze(
+        self,
+        bundle: EvidenceBundle,
+        decision: DecisionResult | None,
+        tool_run: ToolRun | None = None,
+    ) -> AnalyzerResult:
         from strands import Agent
 
         started = time.perf_counter()
@@ -230,7 +247,9 @@ class StrandsBedrockAnalyzer:
                 system_prompt=SYSTEM_PROMPT,
                 callback_handler=None,
             )
-            result = agent(build_prompt(bundle, decision), structured_output_model=IncidentAnalysis)
+            result = agent(
+                build_prompt(bundle, decision, tool_run), structured_output_model=IncidentAnalysis
+            )
             analysis = result.structured_output
         except Exception as e:  # noqa: BLE001 - mapped to typed errors below
             raise map_exception(e) from e

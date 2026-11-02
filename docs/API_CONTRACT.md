@@ -25,7 +25,8 @@ exact text the model read), `question`, `options`, `selected`, `confidence` and
 
 `outcome`: `tool_selected` (confident), `evidence_requested` (below threshold or the model
 chose `collect_more_evidence`), `human_review` (evidence rounds exhausted).
-`tool_invoked` is always `null` until diagnostic tools exist (Phase 4).
+`tool_invoked` is set only by a full investigation, after the read-only tool actually ran; a bare
+`/decision/run` leaves it `null`.
 
 Typed options (`ToolOption`): `investigate_load_balancer`, `investigate_ec2`,
 `investigate_database`, `investigate_cloudwatch_logs`, `collect_more_evidence`.
@@ -51,9 +52,14 @@ separate from **hypotheses** (with `what_would_confirm`), `probable_root_causes`
 evidence ids removed. Model output is untrusted: a fact without valid evidence, or stating
 a number absent from the cited evidence, is demoted to a hypothesis.
 
-In Phase 3 the evidence bundle comes from the simulation data. The Decider's selected tool
-is recorded, but real tool execution arrives in Phase 4.
+## Diagnostic tools and live mode (Phase 4)
 
-## Planned (not yet implemented)
+A confident Decider selection (`outcome = tool_selected`) runs the matching read-only tool.
+Low confidence, `collect_more_evidence` or `human_review` run nothing, and the report says so.
+`IncidentReport.tool_run`: `tool`, `mode`, `backend` (`simulation` | `aws-readonly`), `findings`
+(each becomes an evidence item with `source: "tool"`, ids continuing after the baseline items),
+`api_calls` (IAM-style action names; empty in simulation), `duration_ms`, `executed_at`.
 
-- Phase 4: live evidence and tool-output payloads
+Mode comes from `INCIDENTPILOT_MODE`. Live mode lists one incident, `live-current`; with no
+`INCIDENTPILOT_LIVE_*` target it lists none (with a notice) and every incident call returns
+503. Tool/backend failures: 503 (`Retry-After` when transient) or 502; nothing is stored.

@@ -20,6 +20,7 @@ const base: IncidentReport = {
     mode: "simulation",
   },
   decision: null,
+  tool_run: null,
   evidence: { incident_id: "sim-alb-503", mode: "simulation", items: [{ id: "E1", source: "alb", text: "Fixture evidence" }] },
   analysis: {
     summary: "Fixture summary",
@@ -56,5 +57,30 @@ describe("ReportView", () => {
     expect(md).toContain("Maybe X");
     expect(md).toContain("_None passed grounding._");
     expect(md).not.toContain("Decider 2B decision");
+  });
+});
+
+describe("ReportView tool run", () => {
+  const withTool: IncidentReport = {
+    ...base,
+    tool_run: {
+      tool: "investigate_cloudwatch_logs",
+      mode: "live",
+      backend: "aws-readonly",
+      findings: ["log: fixture line"],
+      api_calls: ["logs:FilterLogEvents"],
+      duration_ms: 42,
+      executed_at: "2026-10-20T10:00:00Z",
+    },
+  };
+  it("shows the tool, its AWS calls and findings", () => {
+    render(<ReportView report={withTool} />);
+    expect(screen.getByText("logs:FilterLogEvents")).toBeTruthy();
+    expect(screen.getByText("log: fixture line")).toBeTruthy();
+    expect(reportToMarkdown(withTool)).toContain("AWS calls: logs:FilterLogEvents");
+  });
+  it("says plainly when no tool ran", () => {
+    render(<ReportView report={base} />);
+    expect(screen.getByText("No tool ran for this report.")).toBeTruthy();
   });
 });

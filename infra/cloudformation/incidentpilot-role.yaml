@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  IncidentPilot AI - least-privilege role. Read-only diagnostics plus invoke of one Bedrock
+  model. Contains no write, delete or modify permission. Review before deploying.
+
+Parameters:
+  TrustedPrincipalArn:
+    Type: String
+    Description: ARN of the IAM role/user (or SSO permission-set role) allowed to assume this role.
+  LogGroupName:
+    Type: String
+    Description: CloudWatch Logs group IncidentPilot may search (for example /app/web).
+  BedrockModelResourceArns:
+    Type: CommaDelimitedList
+    Description: >-
+      Foundation-model and/or inference-profile ARNs matching INCIDENTPILOT_BEDROCK_MODEL_ID.
+
+Resources:
+  IncidentPilotRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: IncidentPilotReadOnly
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Ref TrustedPrincipalArn
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ReadOnlyDiagnostics
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ReadOnlyDiagnostics
+                Effect: Allow
+                Action:
+                  - elasticloadbalancing:DescribeTargetHealth
+                  - elasticloadbalancing:DescribeTargetGroups
+                  - elasticloadbalancing:DescribeLoadBalancers
+                  - cloudwatch:GetMetricData
+                  - cloudwatch:DescribeAlarms
+                  - ec2:DescribeInstances
+                  - ec2:DescribeInstanceStatus
+                  - rds:DescribeDBInstances
+                Resource: "*"
+              - Sid: ReadLogsFromOneLogGroup
+                Effect: Allow
+                Action:
+                  - logs:FilterLogEvents
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${LogGroupName}:*"
+        - PolicyName: InvokeBedrockModel
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource: !Ref BedrockModelResourceArns
+
+Outputs:
+  RoleArn:
+    Value: !GetAtt IncidentPilotRole.Arn

@@ -223,7 +223,7 @@ function ResultView({ result }: { result: DecisionResult }) {
         <Row label="Round trip (API)" value={`${result.roundtrip_ms.toFixed(1)} ms`} mono />
         <Row
           label="Tool invoked"
-          value={result.tool_invoked ?? "— (diagnostic tools arrive in Phase 4)"}
+          value={result.tool_invoked ?? "— (a bare decision runs no tool; use Investigation)"}
           mono
         />
       </dl>

@@ -43,6 +43,16 @@ class Settings(BaseSettings):
     data_dir: str = "data"  # report store; git-ignored
     decider_url: str = ""  # base URL of `strands-decider serve`; empty = not configured
     decider_timeout_s: float = Field(default=10.0, gt=0.0, le=120.0)
+    # Live mode targets (read-only). Set at least one; unset parts are reported "not measured".
+    live_target_group_arn: str = ""  # ALB target group: health, ALB metrics, EC2 instances
+    live_db_instance_id: str = ""  # RDS DB instance identifier
+    live_log_group: str = ""  # CloudWatch Logs group searched for errors
+    live_alarm_name_prefix: str = ""  # only consider alarms whose name starts with this
+    live_window_minutes: int = Field(default=30, ge=5, le=180)
+
+    @property
+    def live_configured(self) -> bool:
+        return bool(self.live_target_group_arn or self.live_db_instance_id or self.live_log_group)
 
     @field_validator("cors_origins")
     @classmethod

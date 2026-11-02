@@ -1,6 +1,8 @@
 """Investigation API. ScriptedAnalyzer and the MockTransport Decider are TEST DOUBLES that
 exercise our orchestration; they are not Bedrock or Decider 2B."""
 
+from datetime import UTC, datetime
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -8,9 +10,12 @@ from fastapi.testclient import TestClient
 from app.agent.analyzer import AnalysisError, AnalysisUnavailable, AnalyzerResult
 from app.agent.report import Fact, IncidentAnalysis
 from app.agent.store import ReportStore
-from app.config import Settings, get_settings
-from app.deps import get_analyzer, get_decider_client, get_report_store
+from app.config import Mode, Settings, get_settings
+from app.deps import get_analyzer, get_backend, get_decider_client, get_report_store
 from app.main import create_app
+from app.schemas import IncidentSummary, ServiceKind, Severity
+from app.state import IncidentState
+from app.tools.base import DiagnosticsError, DiagnosticsUnavailable, ToolRun
 from decision_patterns.tool_selection import HttpDeciderClient
 from tests.test_decision_api import ok_handler, stub_answer
 
@@ -33,9 +38,11 @@ class ScriptedAnalyzer:
         self.calls = 0
         self.last_decision = "unset"
 
-    def analyze(self, bundle, decision):
+    def analyze(self, bundle, decision, tool_run=None):
         self.calls += 1
         self.last_decision = decision
+        self.last_tool_run = tool_run
+        self.last_bundle = bundle
         if self.error:
             raise self.error
         return AnalyzerResult(self.analysis, self.model_id, self.region, 12.5)
@@ -118,11 +125,11 @@ def test_require_decision_false_gives_analysis_only(tmp_path):
     assert r.json()["status"] == "analysis_only" and r.json()["decision"] is None
 
 
-def test_unknown_incident_404_and_live_mode_501(tmp_path, monkeypatch):
+def test_unknown_incident_404_and_unconfigured_live_mode_503(tmp_path, monkeypatch):
     c = make(tmp_path, ScriptedAnalyzer(), ok_handler())
     assert c.post("/api/v1/investigations", json={"incident_id": "nope"}).status_code == 404
     c.app.dependency_overrides[get_settings] = lambda: Settings(mode="live")
-    assert c.post("/api/v1/investigations", json={"incident_id": "sim-alb-503"}).status_code == 501
+    assert c.post("/api/v1/investigations", json={"incident_id": "sim-alb-503"}).status_code == 503
 
 
 @pytest.mark.parametrize("rid", ["nope", "../etc/passwd", "rpt_" + "0" * 32])
@@ -135,3 +142,98 @@ def test_api_key_protects_investigations(tmp_path, monkeypatch):
     get_settings.cache_clear()
     c = make(tmp_path, ScriptedAnalyzer(), ok_handler())
     assert c.post("/api/v1/investigations", json={"incident_id": "sim-alb-503"}).status_code == 401
+
+
+# ---- Phase 4: diagnostic tool execution ----------------------------------------------------
+
+
+def test_confident_selection_runs_the_tool_and_adds_its_findings_as_evidence(tmp_path):
+    an = ScriptedAnalyzer()
+    c = make(tmp_path, an, ok_handler())
+    rep = c.post("/api/v1/investigations", json={"incident_id": "sim-alb-503"}).json()
+    run = rep["tool_run"]
+    assert run["tool"] == "investigate_load_balancer" and run["backend"] == "simulation"
+    assert rep["decision"]["tool_invoked"] == "investigate_load_balancer"
+    items = rep["evidence"]["items"]
+    tool_items = [i for i in items if i["source"] == "tool"]
+    assert len(tool_items) == len(run["findings"]) and tool_items
+    assert [i["id"] for i in items] == [f"E{n}" for n in range(1, len(items) + 1)]
+    assert an.last_tool_run is not None and an.last_tool_run.tool.value == run["tool"]
+
+
+def test_low_confidence_runs_no_tool(tmp_path):
+    c = make(tmp_path, ScriptedAnalyzer(), ok_handler(stub_answer(confidence=0.2)))
+    rep = c.post("/api/v1/investigations", json={"incident_id": "sim-alb-503"}).json()
+    assert rep["tool_run"] is None and rep["decision"]["tool_invoked"] is None
+    assert all(i["source"] != "tool" for i in rep["evidence"]["items"])
+
+
+def test_analysis_only_runs_no_tool(tmp_path):
+    c = make(tmp_path, ScriptedAnalyzer(), None)
+    rep = c.post(
+        "/api/v1/investigations", json={"incident_id": "sim-alb-503", "require_decision": False}
+    ).json()
+    assert rep["tool_run"] is None
+
+
+class FakeLiveBackend:
+    """TEST DOUBLE standing in for the AWS backend; exercises orchestration only."""
+
+    mode = Mode.LIVE
+
+    def __init__(self, tool_error=None):
+        self.tool_error = tool_error
+        self.ran = []
+
+    def list_incidents(self):
+        return [], None
+
+    def get_incident(self, incident_id):
+        if incident_id != "live-current":
+            return None
+        inc = IncidentSummary(
+            id="live-current",
+            title="t",
+            summary="s",
+            category="live",
+            severity=Severity.INFO,
+            affected_services=[ServiceKind.ALB],
+            mode=Mode.LIVE,
+        )
+        return inc, IncidentState(incident_id="live-current")
+
+    def run_tool(self, tool, state):
+        if self.tool_error:
+            raise self.tool_error
+        self.ran.append(tool)
+        return ToolRun(
+            tool=tool,
+            mode=Mode.LIVE,
+            backend="aws-readonly",
+            findings=["fake finding"],
+            api_calls=["logs:FilterLogEvents"],
+            duration_ms=1.0,
+            executed_at=datetime.now(UTC),
+        )
+
+
+def test_live_report_is_labelled_live_and_records_api_calls(tmp_path):
+    c = make(tmp_path, ScriptedAnalyzer(), ok_handler())
+    fb = FakeLiveBackend()
+    c.app.dependency_overrides[get_backend] = lambda: fb
+    rep = c.post("/api/v1/investigations", json={"incident_id": "live-current"}).json()
+    assert rep["mode"] == "live" and rep["tool_run"]["api_calls"] == ["logs:FilterLogEvents"]
+    assert rep["decision"]["mode"] == "live"
+
+
+def test_tool_failure_is_503_and_saves_nothing(tmp_path):
+    c = make(tmp_path, ScriptedAnalyzer(), ok_handler())
+    c.app.dependency_overrides[get_backend] = lambda: FakeLiveBackend(
+        DiagnosticsUnavailable("denied", retryable=True)
+    )
+    r = c.post("/api/v1/investigations", json={"incident_id": "live-current"})
+    assert r.status_code == 503 and "Diagnostic tool unavailable" in r.json()["detail"]
+    assert r.headers.get("retry-after") == "10"
+    assert c.get("/api/v1/reports").json() == []
+    c.app.dependency_overrides[get_backend] = lambda: FakeLiveBackend(DiagnosticsError("bad"))
+    assert c.post("/api/v1/investigations", json={"incident_id": "live-current"}).status_code == 502

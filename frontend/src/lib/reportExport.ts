@@ -31,6 +31,16 @@ export function reportToMarkdown(r: IncidentReport): string {
       "",
     );
   }
+  if (r.tool_run) {
+    L.push(
+      "## Diagnostic tool",
+      "",
+      `- Tool: \`${r.tool_run.tool}\` (${r.tool_run.backend})`,
+      ...(r.tool_run.api_calls.length ? [`- AWS calls: ${r.tool_run.api_calls.join(", ")}`] : []),
+      ...r.tool_run.findings.map((f) => `- ${f}`),
+      "",
+    );
+  }
   L.push("## Confirmed facts", "");
   L.push(...(a.confirmed_facts.length ? a.confirmed_facts.map((f) => `- ${f.statement}${ids(f.evidence_ids)}`) : ["_None passed grounding._"]), "");
   L.push("## Hypotheses (not confirmed)", "");

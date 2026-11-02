@@ -43,7 +43,7 @@ class ToolOption(StrEnum):
 class DecisionOutcome(StrEnum):
     """What the confidence gate decided to do with the model's selection."""
 
-    TOOL_SELECTED = "tool_selected"  # confident; the tool is run in Phase 4
+    TOOL_SELECTED = "tool_selected"  # confident; the selected tool is run
     EVIDENCE_REQUESTED = "evidence_requested"  # gather more evidence, then ask again
     HUMAN_REVIEW = "human_review"  # still unsure; a person decides
 
@@ -122,7 +122,8 @@ class DecisionResult(BaseModel):
     outcome: DecisionOutcome
     reason: str
     tool_invoked: str | None = Field(
-        default=None, description="Always null until diagnostic tools exist (Phase 4)."
+        default=None,
+        description="Set only by a full investigation, after the read-only tool ran.",
     )
 
 

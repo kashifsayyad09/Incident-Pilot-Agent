@@ -614,7 +614,7 @@
               }
             ],
             "title": "Tool Invoked",
-            "description": "Always null until diagnostic tools exist (Phase 4)."
+            "description": "Set only by a full investigation, after the read-only tool ran."
           }
         },
         "type": "object",
@@ -725,7 +725,8 @@
               "rds",
               "cloudwatch_alarm",
               "change",
-              "log"
+              "log",
+              "tool"
             ],
             "title": "Source"
           },
@@ -1036,6 +1037,16 @@
               }
             ]
           },
+          "tool_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolRun"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "evidence": {
             "$ref": "#/components/schemas/EvidenceBundle"
           },
@@ -1210,6 +1221,58 @@
         ],
         "title": "ToolOption",
         "description": "The typed option set Decider 2B chooses from."
+      },
+      "ToolRun": {
+        "properties": {
+          "tool": {
+            "$ref": "#/components/schemas/ToolOption"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/Mode"
+          },
+          "backend": {
+            "type": "string",
+            "title": "Backend",
+            "description": "'simulation' or 'aws-readonly'"
+          },
+          "findings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Findings",
+            "description": "Plain-text findings; each becomes an evidence item."
+          },
+          "api_calls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Api Calls",
+            "description": "Read-only AWS operations performed, e.g. 'elbv2:DescribeTargetHealth'. Empty in simulation."
+          },
+          "duration_ms": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Duration Ms"
+          },
+          "executed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Executed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool",
+          "mode",
+          "backend",
+          "findings",
+          "duration_ms",
+          "executed_at"
+        ],
+        "title": "ToolRun",
+        "description": "What a diagnostic tool actually did and returned. Recorded in the report."
       },
       "ValidationError": {
         "properties": {

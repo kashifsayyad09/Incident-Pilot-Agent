@@ -111,13 +111,13 @@ def test_garbage_from_server_returns_502():
     assert r.status_code == 502
 
 
-def test_unknown_incident_404_and_live_mode_501(monkeypatch):
+def test_unknown_incident_404_and_unconfigured_live_mode_503(monkeypatch):
     c = app_with(ok_handler())
     assert c.post("/api/v1/decision/run", json={"incident_id": "nope"}).status_code == 404
     monkeypatch.setenv("INCIDENTPILOT_MODE", "live")
     get_settings.cache_clear()
     c2 = app_with(ok_handler())
-    assert c2.post("/api/v1/decision/run", json={"incident_id": "sim-alb-503"}).status_code == 501
+    assert c2.post("/api/v1/decision/run", json={"incident_id": "sim-alb-503"}).status_code == 503
 
 
 def test_health_reflects_decider_availability(monkeypatch):

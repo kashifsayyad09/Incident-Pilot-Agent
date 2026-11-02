@@ -177,3 +177,21 @@ def test_live_bedrock_roundtrip():
     a = StrandsBedrockAnalyzer(s.bedrock_model_id, s.aws_region)
     out = a.analyze(bundle(), None)
     assert out.analysis.summary
+
+
+def test_prompt_mentions_the_diagnostic_run_only_when_one_happened():
+    from datetime import UTC, datetime
+
+    from app.schemas import ToolOption
+    from app.tools.base import ToolRun
+
+    run = ToolRun(
+        tool=ToolOption.INVESTIGATE_EC2,
+        mode=Mode.SIMULATION,
+        backend="simulation",
+        findings=["f"],
+        duration_ms=1.0,
+        executed_at=datetime.now(UTC),
+    )
+    assert "investigate_ec2" in build_prompt(bundle(), None, run)
+    assert "Diagnostic run" not in build_prompt(bundle(), None)

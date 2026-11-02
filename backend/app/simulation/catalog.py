@@ -1,6 +1,6 @@
 """Simulation scenario catalogue (metadata only).
 
-Evidence payloads (metrics, logs, alarms) are added in Phase 4. Nothing here
+Evidence payloads live in evidence.py and tools/sim_details.py. Nothing here
 is a measurement; these are descriptions of the five required sample scenarios.
 """
 

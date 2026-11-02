@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from app.config import Mode
 from app.schemas import DecisionResult, IncidentSummary
+from app.tools.base import ToolRun
 
 from .evidence import EvidenceBundle
 
@@ -110,6 +111,7 @@ class IncidentReport(BaseModel):
     status: ReportStatus
     incident: IncidentSummary
     decision: DecisionResult | None
+    tool_run: ToolRun | None = None
     evidence: EvidenceBundle
     analysis: IncidentAnalysis
     grounding: GroundingReport

@@ -74,13 +74,20 @@ export interface DecisionResult {
   meets_threshold: boolean;
   outcome: DecisionOutcome;
   reason: string;
-  /** Always null until diagnostic tools exist (Phase 4). */
+  /** Set only by a full investigation, after the read-only tool actually ran. */
   tool_invoked: string | null;
 }
 
 // ---- Phase 3: reports (mirrors backend/app/agent/report.py) ----
 
-export type EvidenceSource = "alb" | "ec2" | "rds" | "cloudwatch_alarm" | "change" | "log";
+export type EvidenceSource =
+  | "alb"
+  | "ec2"
+  | "rds"
+  | "cloudwatch_alarm"
+  | "change"
+  | "log"
+  | "tool";
 
 export interface EvidenceItem {
   id: string;
@@ -152,6 +159,18 @@ export type ReportStatus =
   | "needs_human_review"
   | "analysis_only";
 
+export interface ToolRun {
+  tool: ToolOption;
+  mode: Mode;
+  /** "simulation" or "aws-readonly" */
+  backend: string;
+  findings: string[];
+  /** Read-only AWS operations performed (empty in simulation). */
+  api_calls: string[];
+  duration_ms: number;
+  executed_at: string;
+}
+
 export interface IncidentReport {
   id: string;
   created_at: string;
@@ -159,6 +178,7 @@ export interface IncidentReport {
   status: ReportStatus;
   incident: IncidentSummary;
   decision: DecisionResult | null;
+  tool_run: ToolRun | null;
   evidence: EvidenceBundle;
   analysis: IncidentAnalysis;
   grounding: GroundingReport;

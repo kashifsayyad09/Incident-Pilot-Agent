@@ -31,14 +31,16 @@ def test_incident_detail_and_404(client):
     assert client.get("/api/v1/incidents/nope").status_code == 404
 
 
-def test_live_mode_does_not_serve_simulation_data(monkeypatch):
+def test_unconfigured_live_mode_does_not_serve_simulation_data(monkeypatch):
     monkeypatch.setenv("INCIDENTPILOT_MODE", "live")
     get_settings.cache_clear()
     c = TestClient(create_app())
     body = c.get("/api/v1/incidents").json()
     assert body["mode"] == "live"
     assert body["incidents"] == []
-    assert c.get("/api/v1/incidents/sim-alb-503").status_code == 501
+    assert "INCIDENTPILOT_LIVE_" in body["notice"]
+    r = c.get("/api/v1/incidents/sim-alb-503")
+    assert r.status_code == 503 and "Live mode needs" in r.json()["detail"]
 
 
 def test_api_key_enforced_when_configured(monkeypatch):

@@ -2,7 +2,8 @@
 
 Each item has a stable id (E1, E2, ...). The model must cite these ids, and the grounding
 step checks that its confirmed facts are actually supported by the items it cites.
-Phase 4's real AWS tools will produce the same bundle shape from live API responses.
+The simulation and live AWS backends produce the same bundle shape; diagnostic tool
+findings are appended as further items (source "tool").
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ from pydantic import BaseModel
 from app.config import Mode
 from app.state import IncidentState, fmt
 
-Source = Literal["alb", "ec2", "rds", "cloudwatch_alarm", "change", "log"]
+Source = Literal["alb", "ec2", "rds", "cloudwatch_alarm", "change", "log", "tool"]
 
 
 class EvidenceItem(BaseModel):
@@ -81,3 +82,13 @@ def bundle_from_state(state: IncidentState, mode: Mode) -> EvidenceBundle:
         mode=mode,
         items=[EvidenceItem(id=f"E{n}", source=s, text=t) for n, (s, t) in enumerate(texts, 1)],
     )
+
+
+def extend_with_tool(bundle: EvidenceBundle, findings: list[str], tool: str) -> EvidenceBundle:
+    """Append a diagnostic tool's findings as further numbered items (ids continue on)."""
+    n = len(bundle.items)
+    extra = [
+        EvidenceItem(id=f"E{n + i + 1}", source="tool", text=f"[{tool}] {text}")
+        for i, text in enumerate(findings)
+    ]
+    return bundle.model_copy(update={"items": [*bundle.items, *extra]})

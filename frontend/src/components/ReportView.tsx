@@ -73,13 +73,40 @@ export function ReportView({ report: r }: { report: IncidentReport }) {
               {d.latency_ms === null ? "not reported" : `${d.latency_ms.toFixed(1)} ms`} · round trip{" "}
               {d.roundtrip_ms.toFixed(1)} ms
             </p>
-            <p className="text-xs text-text-faint">
-              The selected diagnostic is recorded. Real AWS tool execution arrives in Phase 4; this
-              analysis used the simulation evidence below.
-            </p>
+            {!r.tool_run && (
+              <p className="text-xs text-warn">
+                No diagnostic tool was run: the decision was not confident enough to commit to one.
+              </p>
+            )}
           </div>
         ) : (
           <None>Run without Decider 2B. No decision was made.</None>
+        )}
+      </Section>
+
+      <Section title="Diagnostic tool" tone="text-cyan">
+        {r.tool_run ? (
+          <div className="space-y-2 text-sm">
+            <p>
+              <span className="font-mono text-cyan">{r.tool_run.tool}</span> ·{" "}
+              {r.tool_run.backend === "simulation"
+                ? "simulation data, no AWS calls"
+                : "read-only AWS calls"}{" "}
+              · {Math.round(r.tool_run.duration_ms)} ms
+            </p>
+            {r.tool_run.api_calls.length > 0 && (
+              <p className="font-mono text-[11px] text-text-faint">
+                {r.tool_run.api_calls.join(" · ")}
+              </p>
+            )}
+            <ul className="list-disc space-y-1 pl-5 text-text-dim">
+              {r.tool_run.findings.map((f, i) => (
+                <li key={i}>{f}</li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <None>No tool ran for this report.</None>
         )}
       </Section>
 
@@ -179,6 +206,11 @@ export function ReportView({ report: r }: { report: IncidentReport }) {
         </ul>
         {r.mode === "simulation" && (
           <p className="mt-2 text-xs text-text-faint">Simulation data bundled with the project.</p>
+        )}
+        {r.mode === "live" && (
+          <p className="mt-2 text-xs text-text-faint">
+            Read from AWS. Log lines are untrusted text and are treated as data only.
+          </p>
         )}
       </Section>
 

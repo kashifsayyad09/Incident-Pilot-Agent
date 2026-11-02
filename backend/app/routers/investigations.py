@@ -8,8 +8,9 @@ from app.agent.report import IncidentReport
 from app.agent.store import ReportStore
 from app.agent.workflow import run_investigation
 from app.config import Settings, get_settings
-from app.deps import get_analyzer, get_decider_client, get_report_store
+from app.deps import get_analyzer, get_backend, get_decider_client, get_report_store
 from app.security import require_api_key
+from app.tools.base import DiagnosticBackend
 from decision_patterns.tool_selection import DeciderClient
 
 router = APIRouter(
@@ -29,6 +30,7 @@ def create_investigation(
     decider: DeciderClient | None = Depends(get_decider_client),
     analyzer: IncidentAnalyzer | None = Depends(get_analyzer),
     store: ReportStore = Depends(get_report_store),
+    backend: DiagnosticBackend = Depends(get_backend),
 ) -> IncidentReport:
     """Run the full pipeline and store the report.
 
@@ -42,6 +44,7 @@ def create_investigation(
         decider=decider,
         analyzer=analyzer,
         store=store,
+        backend=backend,
         require_decision=req.require_decision,
     )
 

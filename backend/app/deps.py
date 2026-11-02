@@ -32,3 +32,9 @@ def get_report_store(settings: Settings = Depends(get_settings)):
     from app.agent.store import ReportStore
 
     return ReportStore(settings.data_dir)
+
+
+def get_backend(settings: Settings = Depends(get_settings)):
+    from app.tools.factory import build_backend
+
+    return build_backend(settings)
