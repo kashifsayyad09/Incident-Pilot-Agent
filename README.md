@@ -8,7 +8,7 @@ Hackathon** (category: Tool Selection, `#strands-decider-2b #tool-selection`).
 **Pipeline:** Incident → Strands Decider 2B picks the next diagnostic tool →
 read-only AWS diagnostic → Amazon Bedrock analysis → incident report → dashboard.
 
-## Status: Phase 4 (diagnostic tools, read-only AWS) complete, pending live Decider/Bedrock/AWS verification
+## Status: Phase 5 (UI polish, accessibility, motion) complete, pending live Decider/Bedrock/AWS verification
 
 | Area | State |
 |---|---|
@@ -29,6 +29,17 @@ Nothing in the UI is faked: unavailable components are shown as unavailable.
 ![Workflow Diagram](p1.png)
 
 ![Workflow Diagram](p2.png)
+
+### UI verification (Phase 5)
+
+Checked on the production build with Chromium: axe-core (WCAG 2.0/2.1/2.2 A and AA plus
+best-practice) reports no violations on all five pages and on the Investigation page with a
+report; no console errors; no horizontal scroll at 360px (a grid overflow on Investigation was
+found and fixed); keyboard-only path from the skip link to running an investigation with a
+visible focus ring; reduced motion shows report content immediately with no tweens; with
+WebGL disabled there is no canvas and everything still works. Not done: a screen-reader pass,
+other browsers, real mobile devices. The report screens in that check were rendered from test
+doubles for Decider and Bedrock, so no screenshot of them is committed.
 
 ### Live mode (read-only AWS)
 

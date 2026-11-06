@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { IncidentReport } from "@/lib/types";
 import { ReportView } from "@/components/ReportView";
 import { useApi } from "@/lib/useApi";
 import { MM_FULL, gsap, useGSAP } from "@/lib/motion";
-import { useDefaultSelection, useIncidentState } from "@/lib/incidentStore";
+import { setFocus, useDefaultSelection, useIncidentState } from "@/lib/incidentStore";
 import { useReveal } from "@/lib/useReveal";
 import {
   AvailabilityPill,
@@ -26,6 +26,59 @@ const STEPS = [
   { key: "tool", label: "Diagnostic tool", note: "Read-only CloudWatch, ALB, EC2 or RDS call.", component: "aws_diagnostics", tone: "text-cyan", border: "border-cyan/40" },
   { key: "analysis", label: "Bedrock analysis", note: "Confirmed facts vs hypotheses and advisory recovery steps.", component: "bedrock_agent", tone: "text-violet", border: "border-violet/50" },
 ] as const;
+
+function OutcomePill({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-chip border px-2 py-0.5 font-mono text-[11px] ${
+        ok ? "border-ok/50 text-ok" : "border-warn/50 text-warn"
+      }`}
+    >
+      <span aria-hidden>{ok ? "✓" : "▲"}</span>
+      {label}
+    </span>
+  );
+}
+
+/** What each pipeline step actually did in this report. Nothing is inferred. */
+function stepOutcome(
+  key: (typeof STEPS)[number]["key"],
+  r: IncidentReport,
+): { ok: boolean; label: string; text: string } {
+  const d = r.decision;
+  switch (key) {
+    case "state":
+      return {
+        ok: true,
+        label: "DONE",
+        text: `${r.evidence.items.length} evidence items (${r.mode === "live" ? "live AWS" : "simulation"}).`,
+      };
+    case "decision":
+      return d
+        ? {
+            ok: d.outcome === "tool_selected",
+            label: d.outcome.replace("_", " ").toUpperCase(),
+            text: `Selected ${d.selected}, confidence ${d.confidence.toFixed(3)} (threshold ${d.confidence_threshold.toFixed(2)}).`,
+          }
+        : { ok: false, label: "SKIPPED", text: "Run without Decider 2B." };
+    case "tool":
+      return r.tool_run
+        ? {
+            ok: true,
+            label: "DONE",
+            text: `${r.tool_run.tool}: ${r.tool_run.findings.length} finding(s)${
+              r.tool_run.api_calls.length ? `, ${r.tool_run.api_calls.length} read-only AWS call type(s)` : ", simulation"
+            }.`,
+          }
+        : { ok: false, label: "NOT RUN", text: "No tool ran: no confident selection." };
+    case "analysis":
+      return {
+        ok: r.grounding.facts_demoted === 0,
+        label: "AI-GENERATED",
+        text: `${r.generation.model_id}: ${r.grounding.facts_kept} fact(s) verified against evidence, ${r.grounding.facts_demoted} demoted to hypotheses.`,
+      };
+  }
+}
 
 export default function Investigation() {
   const health = useApi(api.health);
@@ -47,6 +100,15 @@ export default function Investigation() {
   >({ status: "idle" });
   const [useDecider, setUseDecider] = useState(true);
 
+  const report = run.status === "done" ? run.report : null;
+
+  // Point the 3D scene at the service Decider 2B selected. Decorative; the text states it.
+  useEffect(() => {
+    const sel = report?.decision?.selected;
+    setFocus(sel && sel !== "collect_more_evidence" ? sel : null);
+    return () => setFocus(null);
+  }, [report]);
+
   async function runInvestigation() {
     if (!selected) return;
     setRun({ status: "running" });
@@ -63,7 +125,7 @@ export default function Investigation() {
         gsap.from("[data-step]", { autoAlpha: 0, x: -16, stagger: 0.18, duration: 0.5, ease: "power3.out" });
       });
     },
-    { dependencies: [health.status], scope: page, revertOnUpdate: true },
+    { dependencies: [health.status, report?.id], scope: page, revertOnUpdate: true },
   );
 
   return (
@@ -117,6 +179,7 @@ export default function Investigation() {
                 {STEPS.map((s, i) => {
                   const comp = health.data.components.find((c) => c.name === s.component);
                   const available = comp?.available ?? false;
+                  const outcome = report ? stepOutcome(s.key, report) : null;
                   return (
                     <li key={s.key} data-step className="relative">
                       <span
@@ -128,12 +191,16 @@ export default function Investigation() {
                       <div className={`rounded-card border bg-surface-2/60 p-4 ${s.border}`}>
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <h3 className={`font-semibold ${s.tone}`}>{s.label}</h3>
-                          <AvailabilityPill available={available} />
+                          {outcome ? (
+                            <OutcomePill ok={outcome.ok} label={outcome.label} />
+                          ) : (
+                            <AvailabilityPill available={available} />
+                          )}
                         </div>
                         <p className="mt-1 text-sm text-text-dim">
-                          {available ? s.note : (comp?.detail ?? s.note)}
+                          {outcome ? outcome.text : available ? s.note : (comp?.detail ?? s.note)}
                         </p>
-                        {s.key === "decision" && decider.status === "ready" && (
+                        {s.key === "decision" && !report && decider.status === "ready" && (
                           <div className="mt-3">
                             <p className="text-xs text-text-faint">
                               Option set · escalation threshold{" "}

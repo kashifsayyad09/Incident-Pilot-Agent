@@ -13,7 +13,7 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section data-reveal className={`glass rounded-card p-5 ${className}`}>
+    <section data-reveal className={`glass min-w-0 rounded-card p-5 ${className}`}>
       {(title || meta) && (
         <header className="mb-4 flex items-center justify-between gap-3">
           {title && <h2 className="text-lg font-semibold">{title}</h2>}

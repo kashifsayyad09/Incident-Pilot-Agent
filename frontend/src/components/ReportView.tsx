@@ -1,3 +1,7 @@
+"use client";
+
+import { useRef } from "react";
+import { MM_FULL, gsap, useGSAP } from "@/lib/motion";
 import type { IncidentReport, ReportStatus } from "@/lib/types";
 import { ConfidenceMeter, ModeBadge } from "@/components/ui";
 
@@ -17,7 +21,7 @@ function Ids({ ids }: { ids: string[] }) {
 
 function Section({ title, tone, children }: { title: string; tone?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-card border border-border bg-surface-2/40 p-4">
+    <section data-report-section className="rounded-card border border-border bg-surface-2/40 p-4">
       <h3 className={`mb-2 font-semibold ${tone ?? ""}`}>{title}</h3>
       {children}
     </section>
@@ -33,8 +37,27 @@ export function ReportView({ report: r }: { report: IncidentReport }) {
   const a = r.analysis;
   const d = r.decision;
   const warn = r.status !== "complete";
+  const ref = useRef<HTMLElement>(null);
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia();
+      mm.add(MM_FULL, () => {
+        gsap.from("[data-report-section]", {
+          autoAlpha: 0,
+          y: 14,
+          duration: 0.45,
+          stagger: 0.05,
+          ease: "power3.out",
+          clearProps: "transform,opacity,visibility",
+        });
+      });
+    },
+    { scope: ref, dependencies: [r.id], revertOnUpdate: true },
+  );
+
   return (
-    <article aria-label={`Report ${r.id}`} className="space-y-4">
+    <article ref={ref} aria-label={`Report ${r.id}`} className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <ModeBadge mode={r.mode} />
         <span

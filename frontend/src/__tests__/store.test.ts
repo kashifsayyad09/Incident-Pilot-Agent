@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getIncidentState, selectIncident } from "@/lib/incidentStore";
+import { getIncidentState, selectIncident, setFocus } from "@/lib/incidentStore";
 import type { IncidentSummary } from "@/lib/types";
 
 const inc: IncidentSummary = {
@@ -25,5 +25,18 @@ describe("incident store", () => {
   it("clears flags when nothing is selected", () => {
     selectIncident(null);
     expect(getIncidentState().scene.alb).toBe("none");
+  });
+
+  it("focus maps each diagnostic tool to its service and is cleared by selection or null", () => {
+    selectIncident(inc);
+    setFocus("investigate_database");
+    expect(getIncidentState().focus).toBe("rds");
+    setFocus("investigate_cloudwatch_logs");
+    expect(getIncidentState().focus).toBe("cloudwatch");
+    setFocus("collect_more_evidence");
+    expect(getIncidentState().focus).toBeNull();
+    setFocus("investigate_ec2");
+    selectIncident({ ...inc, id: "y" });
+    expect(getIncidentState().focus).toBeNull();
   });
 });

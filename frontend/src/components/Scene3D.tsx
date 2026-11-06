@@ -9,6 +9,8 @@ import type { ServiceKind } from "@/lib/types";
 const N = 40;
 const PULSES = 40;
 const NAMED: Record<ServiceKind, number> = { alb: 3, ec2: 12, rds: 24, cloudwatch: 33 };
+// Indigo = Decider 2B (design.md): the service its selected diagnostic points at.
+const FOCUS_COLOR = "#6366f1";
 const LEVEL_COLOR: Record<Level, string> = {
   none: "#00d8ff",
   info: "#00d8ff",
@@ -99,7 +101,7 @@ function stepPulses(p: PulseState, g: Graph3D, delta: number) {
 }
 
 function Graph({ animate, particleCount }: { animate: boolean; particleCount: number }) {
-  const { scene } = useIncidentState();
+  const { scene, focus } = useIncidentState();
   const invalidate = useThree((s) => s.invalidate);
   const g = useMemo(() => buildGraph(), []);
   const group = useRef<THREE.Group>(null);
@@ -133,7 +135,8 @@ function Graph({ animate, particleCount }: { animate: boolean; particleCount: nu
     if (attr) attr.needsUpdate = true;
   };
 
-  const flaggedKey = (Object.keys(NAMED) as ServiceKind[]).map((k) => scene[k]).join("|");
+  const flaggedKey =
+    (Object.keys(NAMED) as ServiceKind[]).map((k) => scene[k]).join("|") + `|${focus ?? ""}`;
 
   useLayoutEffect(() => {
     const n = nodes.current;
@@ -148,19 +151,19 @@ function Graph({ animate, particleCount }: { animate: boolean; particleCount: nu
       dummy.scale.setScalar(svc ? 1.7 : 1);
       dummy.updateMatrix();
       n.setMatrixAt(i, dummy.matrix);
-      if (svc) tmpColor.set(LEVEL_COLOR[scene[svc]]);
+      if (svc) tmpColor.set(svc === focus ? FOCUS_COLOR : LEVEL_COLOR[scene[svc]]);
       else tmpColor.set("#00d8ff").multiplyScalar(0.4);
       n.setColorAt(i, tmpColor);
     }
     n.instanceMatrix.needsUpdate = true;
     if (n.instanceColor) n.instanceColor.needsUpdate = true;
     (Object.entries(NAMED) as [ServiceKind, number][]).forEach(([k, idx], j) => {
-      const flagged = scene[k] !== "none";
+      const lit = scene[k] !== "none" || k === focus;
       dummy.position.set(g.pos[idx * 3], g.pos[idx * 3 + 1], g.pos[idx * 3 + 2]);
-      dummy.scale.setScalar(flagged ? 2.2 : 0.0001);
+      dummy.scale.setScalar(lit ? 2.2 : 0.0001);
       dummy.updateMatrix();
       gl.setMatrixAt(j, dummy.matrix);
-      gl.setColorAt(j, tmpColor.set(LEVEL_COLOR[scene[k]]));
+      gl.setColorAt(j, tmpColor.set(k === focus ? FOCUS_COLOR : LEVEL_COLOR[scene[k]]));
     });
     gl.instanceMatrix.needsUpdate = true;
     if (gl.instanceColor) gl.instanceColor.needsUpdate = true;
@@ -181,7 +184,7 @@ function Graph({ animate, particleCount }: { animate: boolean; particleCount: nu
     if (gl) {
       const pulse = 1 + Math.sin(clock.elapsedTime * 3) * 0.12;
       (Object.entries(NAMED) as [ServiceKind, number][]).forEach(([k, idx], j) => {
-        if (scene[k] === "none") return;
+        if (scene[k] === "none" && k !== focus) return;
         dummy.position.set(g.pos[idx * 3], g.pos[idx * 3 + 1], g.pos[idx * 3 + 2]);
         dummy.scale.setScalar(2.2 * pulse);
         dummy.updateMatrix();
