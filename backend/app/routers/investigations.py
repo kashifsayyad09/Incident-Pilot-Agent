@@ -9,6 +9,8 @@ from app.agent.store import ReportStore
 from app.agent.workflow import run_investigation
 from app.config import Settings, get_settings
 from app.deps import get_analyzer, get_backend, get_decider_client, get_report_store
+from app.hardening import investigation_rate_limit
+from app.schemas import INCIDENT_ID
 from app.security import require_api_key
 from app.tools.base import DiagnosticBackend
 from decision_patterns.tool_selection import DeciderClient
@@ -19,11 +21,15 @@ router = APIRouter(
 
 
 class InvestigationRequest(BaseModel):
-    incident_id: str
+    incident_id: str = INCIDENT_ID
     require_decision: bool = True
 
 
-@router.post("/investigations", response_model=IncidentReport)
+@router.post(
+    "/investigations",
+    response_model=IncidentReport,
+    dependencies=[Depends(investigation_rate_limit)],
+)
 def create_investigation(
     req: InvestigationRequest,
     settings: Settings = Depends(get_settings),

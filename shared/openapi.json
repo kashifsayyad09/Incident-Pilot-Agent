@@ -506,6 +506,9 @@
         "properties": {
           "incident_id": {
             "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.-]+$",
             "title": "Incident Id"
           }
         },
@@ -1128,6 +1131,9 @@
         "properties": {
           "incident_id": {
             "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.-]+$",
             "title": "Incident Id"
           },
           "require_decision": {

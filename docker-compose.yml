@@ -19,7 +19,10 @@ services:
     environment:
       # Reachable only when the optional `decider` profile is running; otherwise the
       # API reports Decider 2B as unavailable (it never fakes a decision).
-      INCIDENTPILOT_DECIDER_URL: http://decider:9000
+      # Your own .env value wins; otherwise the optional `decider` profile service.
+      INCIDENTPILOT_DECIDER_URL: ${INCIDENTPILOT_DECIDER_URL:-http://decider:9000}
+    volumes:
+      - reports-data:/data   # stored reports survive container restarts
     expose:
       - "8000"
     healthcheck:
@@ -44,3 +47,4 @@ services:
 
 volumes:
   hf-cache:
+  reports-data:

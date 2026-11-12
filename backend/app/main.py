@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import hardening
 from app.config import get_settings
 from app.routers import decision, health, incidents, investigations
 from app.schemas import API_VERSION
@@ -21,6 +22,7 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type", "X-API-Key"],
     )
+    hardening.install(app)
     app.include_router(health.router)
     app.include_router(incidents.router)
     app.include_router(decision.router)

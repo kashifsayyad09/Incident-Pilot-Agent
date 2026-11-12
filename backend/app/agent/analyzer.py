@@ -76,6 +76,12 @@ class IncidentAnalyzer(Protocol):
     ) -> AnalyzerResult: ...
 
 
+def _neutralise(text: str) -> str:
+    """Evidence text (log lines, change notes) is untrusted: stop it closing the <evidence> block
+    or forging tags. Angle brackets are replaced; the content is otherwise unchanged."""
+    return text.replace("<", "\u2039").replace(">", "\u203a")
+
+
 def build_prompt(
     bundle: EvidenceBundle, decision: DecisionResult | None, tool_run: ToolRun | None = None
 ) -> str:
@@ -83,7 +89,7 @@ def build_prompt(
         f"Analyse incident {bundle.incident_id} (data mode: {bundle.mode.value}).",
         "",
         "<evidence>",
-        *(f"{i.id} [{i.source}] {i.text}" for i in bundle.items),
+        *(f"{i.id} [{i.source}] {_neutralise(i.text)}" for i in bundle.items),
         "</evidence>",
         "",
     ]

@@ -8,7 +8,7 @@ Hackathon** (category: Tool Selection, `#strands-decider-2b #tool-selection`).
 **Pipeline:** Incident → Strands Decider 2B picks the next diagnostic tool →
 read-only AWS diagnostic → Amazon Bedrock analysis → incident report → dashboard.
 
-## Status: Phase 5 (UI polish, accessibility, motion) complete, pending live Decider/Bedrock/AWS verification
+## Status: Phase 6 (integration, security, benchmark harness) complete, pending live Decider/Bedrock/AWS verification
 
 | Area | State |
 |---|---|
@@ -29,6 +29,21 @@ Nothing in the UI is faked: unavailable components are shown as unavailable.
 ![Workflow Diagram](p1.png)
 
 ![Workflow Diagram](p2.png)
+
+### Benchmark: Decider 2B vs Bedrock-only routing
+
+`backend/scripts/benchmark.py` runs the same routing question through a real Decider 2B server
+and a real Bedrock model, and records latency percentiles, token use and (if you give prices)
+cost. **No results are included: none have been measured.** The script refuses to run without
+real endpoints and has no simulated mode. See `benchmark/README.md`.
+
+### Security and integration checks (Phase 6)
+
+See `SECURITY.md` for the controls, how each is tested, and what is not covered.
+`scripts/smoke.py <base-url> [--full]` checks a running stack (`docker compose up`, nginx
+or Next.js dev). Verified here: it passes against the backend directly and through the Next.js
+rewrites; `--full` fails with the API's reason when Decider or Bedrock is not configured.
+The nginx path and `docker compose` remain untested in the development sandbox.
 
 ### UI verification (Phase 5)
 

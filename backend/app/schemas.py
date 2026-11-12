@@ -96,8 +96,11 @@ class DecisionStatus(BaseModel):
     options: list[ToolOption]
 
 
+INCIDENT_ID = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_.-]+$")
+
+
 class DecisionRequest(BaseModel):
-    incident_id: str
+    incident_id: str = INCIDENT_ID
 
 
 class DecisionResult(BaseModel):

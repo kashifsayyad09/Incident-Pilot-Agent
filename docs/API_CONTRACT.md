@@ -52,6 +52,12 @@ separate from **hypotheses** (with `what_would_confirm`), `probable_root_causes`
 evidence ids removed. Model output is untrusted: a fact without valid evidence, or stating
 a number absent from the cited evidence, is demoted to a hypothesis.
 
+## Limits and validation (Phase 6)
+
+`incident_id` must match `^[A-Za-z0-9_.-]{1,64}$` (422 otherwise). `POST /api/v1/investigations`
+is rate limited per process (default 10/min, `INCIDENTPILOT_MAX_INVESTIGATIONS_PER_MINUTE`):
+429 with `Retry-After`. Unhandled errors return `{"detail": "Internal server error."}`.
+
 ## Diagnostic tools and live mode (Phase 4)
 
 A confident Decider selection (`outcome = tool_selected`) runs the matching read-only tool.

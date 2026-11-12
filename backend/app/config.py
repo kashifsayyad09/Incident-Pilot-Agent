@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     live_db_instance_id: str = ""  # RDS DB instance identifier
     live_log_group: str = ""  # CloudWatch Logs group searched for errors
     live_alarm_name_prefix: str = ""  # only consider alarms whose name starts with this
+    # Bedrock calls cost money: cap full investigations per minute (0 = unlimited).
+    # In-memory, per process.
+    max_investigations_per_minute: int = Field(default=10, ge=0, le=1000)
     live_window_minutes: int = Field(default=30, ge=5, le=180)
 
     @property

@@ -5,7 +5,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY decision_patterns ./decision_patterns
-RUN useradd --create-home appuser
+RUN useradd --create-home appuser && mkdir -p /data && chown appuser /data
+ENV INCIDENTPILOT_DATA_DIR=/data
 USER appuser
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
